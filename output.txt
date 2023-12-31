@@ -1,0 +1,4 @@
+Input: Hello U+0048U+0065U+006CU+006CU+006FU+0021 U+1F601 U+5D0
+Encoded string: Hello Hello! 😁 א
+Input: 😁 Hello, אמירה
+Decoded string: U+1F601 Hello, U+05D0U+05DEU+05D9U+05E8U+05D4
