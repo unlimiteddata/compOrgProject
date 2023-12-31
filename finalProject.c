@@ -139,6 +139,44 @@ int my_utf8_decode(char *input, char *output) {
     return 0;       // Success
 }
 
+// validate that the input string is a valid UTF8 encoded string
+int my_utf8_check(char *string) {
+    while (*string != '\0') {
+        if ((*string & 0b10000000) == 0) {
+            // single byte char
+            ++string;
+        } else if ((*string & 0b11100000) == 0b11000000) {
+            // two byte char
+            if ((string[1] & 0b11000000) != 0b10000000) {
+                // incorrect UTF-8 sequence
+                return 0;
+            }
+            string += 2;
+        } else if ((*string & 0b11110000) == 0b11100000) {
+            // three byte char
+            if ((string[1] & 0b11000000) != 0b10000000
+                || (string[2] & 0b11000000) != 0b10000000) {
+                // incorrect UTF-8 sequence
+                return 0;
+            }
+            string += 3;
+        } else if ((*string & 0b11111000) == 0b11110000) {
+            // four byte char
+            if ((string[1] & 0b11000000) != 0b10000000
+                || (string[2] & 0b11000000) != 0b10000000
+                || (string[3] & 0b11000000) != 0b10000000) {
+                // incorrect UTF-8 sequence
+                return 0;
+            }
+            string += 4;
+        }
+        else {
+            return 0;
+        }
+    }
+    return 1;
+}
+
 
 int main() {
     char input1[] = "Hello U+0048U+0065U+006CU+006CU+006FU+0021 U+1F601 U+5D0";
@@ -153,7 +191,7 @@ int main() {
 
 
     char input2[] = "😁 Hello, אמירה";
-    printf("Input: %s\n", input2);
+    printf("\nInput: %s\n", input2);
     char output2[10000];
 
     if (my_utf8_decode(input2, output2) == 0) {
@@ -161,6 +199,24 @@ int main() {
     } else {
         printf("Decoding failed.\n");
     }
+
+    char valid_utf8[] = "Hello, ამარჯობა 𒐃";
+    char invalid_utf8[] = "Invalid \xC3 string"; // Inserting an incomplete UTF-8 sequence
+
+    printf("\nInput: %s\n", valid_utf8);
+    if (my_utf8_check(valid_utf8)) {
+        printf("The string is a valid UTF-8 encoded string.\n");
+    } else {
+        printf("The string is not a valid UTF-8 encoded string.\n");
+    }
+
+    printf("\nInput: %s\n", invalid_utf8);
+    if (my_utf8_check(invalid_utf8)) {
+        printf("The string is a valid UTF-8 encoded string.\n");
+    } else {
+        printf("The string is not a valid UTF-8 encoded string.\n");
+    }
+
     return 0;
 
 }
