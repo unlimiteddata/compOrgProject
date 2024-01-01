@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <stdint.h>
+#include <malloc.h>
 
 // helper function to convert hex character to int
 int hexCharToInt(char c) {
@@ -33,32 +34,28 @@ int is_ascii(const char *input) {
 }
 
 int my_utf8_encode(char *input, char *output) {
-    if (input == NULL || output == NULL) { // empty string input
-        return -1; // Invalid 
+    if (input == NULL || output == NULL) {
+        return -1; // Invalid
     }
 
-    char *encoded = output; // store result 
+    char *encoded = output;
 
     while (*input != '\0') {
-        if (*input == 'U' && *(input + 1) == '+') {
-            input += 2; // Move past "U+"
+        if ((*input == '\\' && *(input + 1) == 'u')) {
+            input += 2; // Move past "\u"
 
             // Convert hexadecimal string to integer
-            char hex[7] = {0}; // 6 hex digits + null terminator
+            char hex[6] = {0}; // 5 hex digits + null terminator
             int i;
-            for (i = 0; i < 6 && isxdigit(*input); ++i) {
-                hex[i] = *(input++); 
-            } 
+            for (i = 0; i < 5 && isxdigit(*input); ++i) {
+                hex[i] = *(input++);
+            }
             int codePoint = hexStringToInt(hex);
 
-            // Encode the Unicode code point into UTF-8 using bit shifts 
+            // Encode the Unicode code point into UTF-8 using bit shifts
             if (codePoint <= 0x7F) { // one byte encoding
                 *(encoded++) = (char)codePoint;
             } else if (codePoint <= 0x7FF) { // two byte encoding
-                // first byte: right-shift code point by 6 - gets upper 5
-                // bits of code point. mask result with 0x1F (0001111 in binary) 
-                // to consider only five lower bits; combine with leading 
-                // prefix 110 (0xC0) 
                 *(encoded++) = (char)(0xC0 | ((codePoint >> 6) & 0x1F));
                 *(encoded++) = (char)(0x80 | (codePoint & 0x3F));
             } else if (codePoint <= 0xFFFF) { // three byte encoding
@@ -92,23 +89,24 @@ int my_utf8_decode(char *input, char *output) {
             // Non-ASCII character, handle UTF-8 decoding
             uint32_t codePoint = 0;
             int  numBytes = 0;
+
             // Determine the number of bytes in the UTF-8 sequence
             if ((*input & 0b10000000) == 0) {
                 // Single-byte character
                 codePoint = *input;
-                 numBytes = 1;
+                numBytes = 1;
             } else if ((*input & 0b11100000) == 0b11000000) {
                 // Two-byte character
                 codePoint = *input & 0b00011111;
-                 numBytes = 2;
+                numBytes = 2;
             } else if ((*input & 0b11110000) == 0b11100000) {
                 // Three-byte character
                 codePoint = *input & 0b00001111;
-                 numBytes = 3;
+                numBytes = 3;
             } else if ((*input & 0b11111000) == 0b11110000) {
                 // Four-byte character
                 codePoint = *input & 0b00000111;
-                 numBytes = 4;
+                numBytes = 4;
             }
 
             // Read the remaining bytes of the UTF-8 sequence
@@ -128,7 +126,7 @@ int my_utf8_decode(char *input, char *output) {
 
             int width = (digits < 4) ? 4 : digits;
 
-            sprintf(output, "U+%.*X", width, codePoint);
+            sprintf(output, "u\\%.*X", width, codePoint);
 
             output += width + 2; // Move the output pointer to the end of the codePoint
             input +=  numBytes; // Move the input pointer to the next character
@@ -177,46 +175,136 @@ int my_utf8_check(char *string) {
     return 1;
 }
 
+int my_utf8_strlen(char *string){
+    int len = 0;
+
+    while (*string){
+        uint8_t byte = (uint8_t)*string;
+
+        if ((byte & 0x80) == 0){
+            len++;
+            string++;
+        }
+        else if ((byte & 0xE0) == 0xC0){
+            len++;
+            string+=2;
+        }
+        else if ((byte & 0xF0) == 0xE0){
+            len++;
+            string += 3;
+        }
+        else if ((byte & 0xF8) == 0xF0){
+            len++;
+            string+=4;
+        }
+        else {
+            string++;
+        }
+    }
+    return len;
+}
+
+
+char *my_utf8_charat(char *string, int index){
+    if (index < 0){
+        return NULL;
+    }
+
+    int i = 0;
+    while (string[i] != '\0' && index > 0){
+        if (my_utf8_check(&string[i])) {
+            uint8_t byte = (uint8_t)string[i];
+            index -= (byte & 0xC0) != 0x80 ? 1: 0;
+        }
+        else {
+            return NULL;
+        }
+
+        i++;
+    }
+
+    if (index == 0){
+        char *character = malloc(5);
+        if (character != NULL){
+            int j;
+            for (j = 0; j < 4 && (string[i+j] & 0xC0) == 0x80; ++j){
+                character[j] = string[i+j];
+            }
+            character[j] = '\0';
+        }
+        return character;
+    }
+    else {
+        return NULL;
+    }
+}
+
 
 int main() {
-    char input1[] = "Hello U+0048U+0065U+006CU+006CU+006FU+0021 U+1F601 U+5D0";
-    printf("Input: %s\n", input1);
-    char output1[100];
+    char input[] = "Hello \\u05D0\\u05E8\\u05D9\\u05D4 \\u1F601"; // Hebrew characters in Codepoint notation
+    char encoded[50] = {0};
+    char decoded[50] = {0};
 
-    if (my_utf8_encode(input1, output1) == 0) {
-        printf("Encoded string: %s\n", output1);
+    // Test my_utf8_encode
+    printf("Testing my_utf8_encode:\n");
+    printf("Input: %s\n", input);
+    int encodeResult = my_utf8_encode(input, encoded);
+    if (encodeResult == 0) {
+        printf("Encoded: %s\n", encoded);
     } else {
-        printf("Encoding failed.\n");
+        printf("Encoding failed\n");
+        return 1;
     }
 
-
-    char input2[] = "😁 Hello, אמירה";
-    printf("\nInput: %s\n", input2);
-    char output2[10000];
-
-    if (my_utf8_decode(input2, output2) == 0) {
-        printf("Decoded string: %s\n", output2);
+    // Test my_utf8_decode
+    printf("\nTesting my_utf8_decode:\n");
+    printf("Input: %s\n", encoded);
+    int decodeResult = my_utf8_decode(encoded, decoded);
+    if (decodeResult == 0) {
+        printf("Decoded: %s\n", decoded);
     } else {
-        printf("Decoding failed.\n");
+        printf("Decoding failed\n");
+        return 1;
     }
 
-    char valid_utf8[] = "Hello, ამარჯობა 𒐃";
-    char invalid_utf8[] = "Invalid \xC3 string"; // Inserting an incomplete UTF-8 sequence
-
-    printf("\nInput: %s\n", valid_utf8);
-    if (my_utf8_check(valid_utf8)) {
-        printf("The string is a valid UTF-8 encoded string.\n");
+    // Test my_utf8_check
+    printf("\nTesting my_utf8_check:\n");
+    printf("Input: %s - ", input);
+    if (my_utf8_check(input)) {
+        printf("Valid UTF-8\n");
     } else {
-        printf("The string is not a valid UTF-8 encoded string.\n");
+        printf("Invalid UTF-8\n");
     }
 
-    printf("\nInput: %s\n", invalid_utf8);
-    if (my_utf8_check(invalid_utf8)) {
-        printf("The string is a valid UTF-8 encoded string.\n");
+    printf("Input: %s - ", encoded);
+    if (my_utf8_check(encoded)) {
+        printf("Valid UTF-8\n");
     } else {
-        printf("The string is not a valid UTF-8 encoded string.\n");
+        printf("Invalid UTF-8\n");
     }
+
+    char invalid[] = "\xc1\xa8\x81";
+    printf("Input: %s - ", invalid);
+    if (my_utf8_check(invalid)) {
+        printf("Valid UTF-8\n");
+    } else {
+        printf("Invalid UTF-8\n");
+    }
+
+    // Test my_utf8_strlen
+    printf("\nTesting my_utf8_strlen:");
+    char lenInput[] = "Hello אריה";
+    printf("\nLength of \"%s\":\n%d\n", lenInput, my_utf8_strlen(lenInput));
+
+//    // Test my_utf8_charat
+//    int index = 1; // Replace with the desired index
+//    char *charAtIndex = my_utf8_charat(encoded, index);
+//    if (charAtIndex != NULL) {
+//        printf("\nCharacter at index %d of %s: %s\n", index, encoded, charAtIndex);
+//        free(charAtIndex); // Free the allocated memory
+//    } else {
+//        printf("Invalid index or encoding\n");
+//    }
 
     return 0;
-
 }

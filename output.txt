@@ -1,11 +1,16 @@
-Input: Hello U+0048U+0065U+006CU+006CU+006FU+0021 U+1F601 U+5D0
-Encoded string: Hello Hello! 😁 א
+Testing my_utf8_encode:
+Input: Hello \u05D0\u05E8\u05D9\u05D4 \u1F601
+Encoded: Hello אריה 😁
 
-Input: 😁 Hello, אמירה
-Decoded string: U+1F601 Hello, U+05D0U+05DEU+05D9U+05E8U+05D4
+Testing my_utf8_decode:
+Input: Hello אריה 😁
+Decoded: Hello u\05D0u\05E8u\05D9u\05D4 u\1F601
 
-Input: Hello, ამარჯობა 𒐃
-The string is a valid UTF-8 encoded string.
+Testing my_utf8_check:
+Input: Hello \u05D0\u05E8\u05D9\u05D4 \u1F601 - Valid UTF-8
+Input: Hello אריה 😁 - Valid UTF-8
+Input: ��� - Invalid UTF-8
 
-Input: Invalid � string \u5
-The string is not a valid UTF-8 encoded string.
+Testing my_utf8_strlen:
+Length of "Hello אריה":
+10
