@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <stdint.h>
-#include <malloc.h>
 
 // helper function to convert hex character to int
 int hexCharToInt(char c) {
@@ -27,12 +26,15 @@ int hexStringToInt(char *hex) {
     return result;
 }
 
-
+// helper function to check if a given character is ASCII
 int is_ascii(const char *input) {
     unsigned char c = (unsigned char)(*input);
     return c <= 127;
 }
 
+// Encoding a UTF8 string, taking as input an ASCII string,
+// with UTF8 characters encoded using the Codepoint numbering
+// scheme notation, and returns a UTF8 encoded string.
 int my_utf8_encode(char *input, char *output) {
     if (input == NULL || output == NULL) {
         return -1; // Invalid
@@ -79,6 +81,9 @@ int my_utf8_encode(char *input, char *output) {
     return 0; // Success
 }
 
+// Takes a UTF8 encoded string, and returns a string, with ASCII
+// representation where possible, and UTF8 character representation
+// for non-ASCII characters.
 int my_utf8_decode(char *input, char *output) {
     while (*input != '\0') {
         if (is_ascii(input)) {
@@ -93,6 +98,7 @@ int my_utf8_decode(char *input, char *output) {
             // Determine the number of bytes in the UTF-8 sequence
             if ((*input & 0b10000000) == 0) {
                 // Single-byte character
+                // Clang-Tidy: 'signed char' to 'uint32_t' (aka 'unsigned int') conversion; consider casting to 'unsigned char' first.
                 codePoint = *input;
                 numBytes = 1;
             } else if ((*input & 0b11100000) == 0b11000000) {
@@ -175,6 +181,7 @@ int my_utf8_check(char *string) {
     return 1;
 }
 
+// return the number of characters in a UTF8 encoded string
 int my_utf8_strlen(char *string){
     int len = 0;
 
@@ -204,44 +211,57 @@ int my_utf8_strlen(char *string){
     return len;
 }
 
-
-char *my_utf8_charat(char *string, int index){
-    if (index < 0){
-        return NULL;
+// Returns the UTF8 encoded character at the location specified.
+// If the input string is improperly encoded, this function should
+// return NULL to indicate an error.
+char *my_utf8_charat(char *string, int index) {
+    if (string == NULL || index < 0) {
+        return NULL;  // Invalid input
     }
 
     int i = 0;
-    while (string[i] != '\0' && index > 0){
-        if (my_utf8_check(&string[i])) {
-            uint8_t byte = (uint8_t)string[i];
-            index -= (byte & 0xC0) != 0x80 ? 1: 0;
-        }
-        else {
+    while (string[i] != '\0') {
+        if ((string[i] & 0x80) == 0) {
+            // Single-byte character
+            if (index == 0) {
+                return &string[i];
+            }
+            index--;
+        } else if ((string[i] & 0xE0) == 0xC0) {
+            // Two-byte character
+            if (index == 0 && (string[i + 1] & 0xC0) == 0x80) {
+                return &string[i];
+            }
+            index--;
+            i++;
+        } else if ((string[i] & 0xF0) == 0xE0) {
+            // Three-byte character
+            if (index == 0 && (string[i + 1] & 0xC0) == 0x80 && (string[i + 2] & 0xC0) == 0x80) {
+                return &string[i];
+            }
+            index--;
+            i += 2;
+        } else if ((string[i] & 0xF8) == 0xF0) {
+            // Four-byte character
+            if (index == 0 && (string[i + 1] & 0xC0) == 0x80 && (string[i + 2] & 0xC0) == 0x80 && (string[i + 3] & 0xC0) == 0x80) {
+                return &string[i];
+            }
+            index--;
+            i += 3;
+        } else {
+            // Invalid UTF-8 character
             return NULL;
         }
-
         i++;
     }
 
-    if (index == 0){
-        char *character = malloc(5);
-        if (character != NULL){
-            int j;
-            for (j = 0; j < 4 && (string[i+j] & 0xC0) == 0x80; ++j){
-                character[j] = string[i+j];
-            }
-            character[j] = '\0';
-        }
-        return character;
-    }
-    else {
-        return NULL;
-    }
+    // Index out of bounds or invalid UTF-8 encoding
+    return NULL;
 }
 
 
 int main() {
-    char input[] = "Hello \\u05D0\\u05E8\\u05D9\\u05D4 \\u1F601"; // Hebrew characters in Codepoint notation
+    char input[] = "Hello \\u05D0\\u05E8\\u05D9\\u05D4 \\u1F601";
     char encoded[50] = {0};
     char decoded[50] = {0};
 
@@ -276,6 +296,17 @@ int main() {
         printf("Invalid UTF-8\n");
     }
 
+
+    // Test my_utf8_check
+    char test[] = "\xd7\x90";
+    char backslashTest[] = "\\xd7\\x90";
+    printf("Input: %s- ", backslashTest);
+    if (my_utf8_check(test)) {
+        printf("Valid UTF-8\n");
+    } else {
+        printf("Invalid UTF-8\n");
+    }
+
     printf("Input: %s - ", encoded);
     if (my_utf8_check(encoded)) {
         printf("Valid UTF-8\n");
@@ -293,18 +324,24 @@ int main() {
 
     // Test my_utf8_strlen
     printf("\nTesting my_utf8_strlen:");
-    char lenInput[] = "Hello אריה";
-    printf("\nLength of \"%s\":\n%d\n", lenInput, my_utf8_strlen(lenInput));
+    char lenInput1[] = "Hello אריה";
+    printf("\nLength of \"%s\":\n%d\n", lenInput1, my_utf8_strlen(lenInput1));
+    char lenInput2[] = "A😀";
+    printf("Length of \"%s\":\n%d\n", lenInput2, my_utf8_strlen(lenInput2));
 
-//    // Test my_utf8_charat
-//    int index = 1; // Replace with the desired index
-//    char *charAtIndex = my_utf8_charat(encoded, index);
-//    if (charAtIndex != NULL) {
-//        printf("\nCharacter at index %d of %s: %s\n", index, encoded, charAtIndex);
-//        free(charAtIndex); // Free the allocated memory
-//    } else {
-//        printf("Invalid index or encoding\n");
-//    }
+    // Test my_utf8_charat
+    printf("\nTesting my_utf8_charat:\n");
+    char charAtInput[] = "Hello אריה";
+    for (int index = 0; charAtInput[index] != '\0'; ++index) {
+        char *result = my_utf8_charat(charAtInput, index);
+        if (result != NULL) {
+            printf("Character at index %d: %.*s\n", index, (int)(my_utf8_charat(charAtInput, index + 1) - my_utf8_charat(charAtInput, index)), my_utf8_charat(charAtInput, index));
+        } else {
+            printf("Index %d: Invalid index or encoding\n", index);
+            break;
+        }
+    }
+
 
     return 0;
 }
