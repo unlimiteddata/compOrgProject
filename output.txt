@@ -1,3 +1,4 @@
+/home/aisenberg/CLionProjects/finalProject/cmake-build-debug/finalProject
 Testing my_utf8_encode:
 Input: Hello \u05D0\u05E8\u05D9\u05D4 \u1F601
 Encoded: Hello אריה 😁
@@ -15,7 +16,7 @@ Input: ��� - Invalid UTF-8
 Testing my_utf8_strlen:
 Length of "Hello אריה":
 10
-Length of "A😀":
+Length of "\xd7\x90\xd7\xaa":
 2
 
 Testing my_utf8_charat:
@@ -30,3 +31,17 @@ Character at index 7: ר
 Character at index 8: י
 Character at index 9: ה
 Index 10: Invalid index or encoding
+
+Testing my_utf8_strcmp():
+Comparing Hello 世界! and Hello 世界!: Strings are equal.
+Comparing Hello 世界! and No: String 1 is before String 2.
+Comparing Yes and No: String 1 is after String 2.
+Comparing 你好 and שלום: String 1 is after String 2.
+
+Testing my_utf8_substring_search:
+String: Hello Amira, substring: Amira
+Substring found at index: 6
+String: Hello Amira Amira, substring: Amira
+Substring found at indices: 6 12 
+String: Hello Amira, substring: 
+Substring found at indices: 0 1 2 3 4 5 6 7 8 9 10 11
