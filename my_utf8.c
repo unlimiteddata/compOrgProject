@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 // helper function to convert hex character to int
 int hexCharToInt(unsigned char c) {
@@ -367,7 +368,39 @@ int my_utf8_substring_search(unsigned char *haystack, unsigned char *needle, siz
     return count;
 }
 
+// Function to remove whitespace from a UTF-8 encoded string
+unsigned char* my_utf8_remove_whitespace(unsigned const char *input) {
+    if (input == NULL) {
+        return NULL;
+    }
 
+    // Allocate memory for the result string
+    size_t inputLength = 0;
+    while (input[inputLength] != '\0') {
+        inputLength++;
+    }
+
+    unsigned char *result = (unsigned char*)malloc((inputLength + 1) * sizeof(char));
+    if (result == NULL) {
+        return NULL;
+    }
+
+    // Iterate through the UTF-8 string, copying non-whitespace characters to the result
+    size_t resultIndex = 0;
+    for (size_t i = 0; i < inputLength; ++i) {
+        uint8_t currentChar = (uint8_t)(input[i]);
+
+        // Check if the character is a whitespace character
+        if (currentChar != ' ' && currentChar != '\t' && currentChar != '\n' && currentChar != '\r') {
+            result[resultIndex++] = input[i];
+        }
+    }
+
+    // Null-terminate the result string
+    result[resultIndex] = '\0';
+
+    return result;
+}
 
 
 int main() {
@@ -381,8 +414,7 @@ int main() {
     int encodeResult = my_utf8_encode(input, encoded);
     if (encodeResult == 0) {
         printf("Encoded: %s\n", encoded);
-    }
-    else {
+    } else {
         printf("Encoding failed\n");
         return 1;
     }
@@ -393,8 +425,7 @@ int main() {
     int decodeResult = my_utf8_decode(encoded, decoded);
     if (decodeResult == 0) {
         printf("Decoded: %s\n", decoded);
-    }
-    else {
+    } else {
         printf("Decoding failed\n");
         return 1;
     }
@@ -404,8 +435,7 @@ int main() {
     printf("Input: %s - ", input);
     if (my_utf8_check(input)) {
         printf("Valid UTF-8\n");
-    }
-    else {
+    } else {
         printf("Invalid UTF-8\n");
     }
 
@@ -416,16 +446,14 @@ int main() {
     printf("Input: %s- ", backslashTest);
     if (my_utf8_check(test)) {
         printf("Valid UTF-8\n");
-    }
-    else {
+    } else {
         printf("Invalid UTF-8\n");
     }
 
     printf("Input: %s - ", encoded);
     if (my_utf8_check(encoded)) {
         printf("Valid UTF-8\n");
-    }
-    else {
+    } else {
         printf("Invalid UTF-8\n");
     }
 
@@ -433,8 +461,7 @@ int main() {
     printf("Input: %s - ", invalid);
     if (my_utf8_check(invalid)) {
         printf("Valid UTF-8\n");
-    }
-    else {
+    } else {
         printf("Invalid UTF-8\n");
     }
 
@@ -452,9 +479,10 @@ int main() {
     for (int index = 0; charAtInput[index] != '\0'; ++index) {
         unsigned char *result = my_utf8_charat(charAtInput, index);
         if (result != NULL) {
-            printf("Character at index %d: %.*s\n", index, (int)(my_utf8_charat(charAtInput, index + 1) - my_utf8_charat(charAtInput, index)), my_utf8_charat(charAtInput, index));
-        }
-        else {
+            printf("Character at index %d: %.*s\n", index,
+                   (int) (my_utf8_charat(charAtInput, index + 1) - my_utf8_charat(charAtInput, index)),
+                   my_utf8_charat(charAtInput, index));
+        } else {
             printf("Index %d: Invalid index or encoding\n", index);
             break;
         }
@@ -474,11 +502,9 @@ int main() {
 
     if (result1 == 0) {
         printf("Strings are equal.\n");
-    }
-    else if (result1 < 0) {
+    } else if (result1 < 0) {
         printf("String 1 is before String 2.\n");
-    }
-    else {
+    } else {
         printf("String 1 is after String 2.\n");
     }
 
@@ -486,11 +512,9 @@ int main() {
     int result2 = my_utf8_strcmp(utf8_string1, utf8_string3);
     if (result2 == 0) {
         printf("Strings are equal.\n");
-    }
-    else if (result2 < 0) {
+    } else if (result2 < 0) {
         printf("String 1 is before String 2.\n");
-    }
-    else {
+    } else {
         printf("String 1 is after String 2.\n");
     }
 
@@ -498,11 +522,9 @@ int main() {
     int result3 = my_utf8_strcmp(utf8_string4, utf8_string3);
     if (result3 == 0) {
         printf("Strings are equal.\n");
-    }
-    else if (result3 < 0) {
+    } else if (result3 < 0) {
         printf("String 1 is before String 2.\n");
-    }
-    else {
+    } else {
         printf("String 1 is after String 2.\n");
     }
 
@@ -510,11 +532,9 @@ int main() {
     int result4 = my_utf8_strcmp(utf8_chinese, utf8_hebrew);
     if (result4 == 0) {
         printf("Strings are equal.\n");
-    }
-    else if (result4 < 0) {
+    } else if (result4 < 0) {
         printf("String 1 is before String 2.\n");
-    }
-    else {
+    } else {
         printf("String 1 is after String 2.\n");
     }
 
@@ -529,53 +549,47 @@ int main() {
     int count = my_utf8_substring_search(haystack1, needle1, indices);
     printf("String: %s, substring: %s\n", haystack1, needle1);
 
-    if (count == 1){
+    if (count == 1) {
         printf("Substring found at index: %zu\n", indices[0]);
-    }
-    else if (count > 0) {
+    } else if (count > 0) {
         printf("Substring found at indices: ");
         for (int i = 0; i < count; ++i) {
             printf("%zu ", indices[i]);
         }
         printf("\n");
-    }
-    else {
+    } else {
         printf("Substring not found.\n");
     }
 
     count = my_utf8_substring_search(haystack2, needle1, indices);
     printf("String: %s, substring: %s\n", haystack2, needle1);
 
-    if (count == 1){
+    if (count == 1) {
         printf("Substring found at index: %zu\n", indices[0]);
-    }
-    else if (count > 0) {
+    } else if (count > 0) {
         printf("Substring found at indices: ");
         for (int i = 0; i < count; ++i) {
             printf("%zu ", indices[i]);
         }
         printf("\n");
-    }
-    else {
+    } else {
         printf("Substring not found.\n");
     }
 
-//    count = my_utf8_substring_search(haystack1, needle2, indices);
-//    printf("String: %s, substring: %s\n", haystack1, needle2);
-//
-//    if (count == 1){
-//        printf("Substring found at index: %zu\n", indices[0]);
-//    }
-//    else if (count > 0) {
-//        printf("Substring found at indices: ");
-//        for (int i = 0; i < count; ++i) {
-//            printf("%zu ", indices[i]);
-//        }
-//        printf("\n");
-//    }
-//    else {
-//        printf("Substring not found.\n");
-//    }
-//
+    printf("\nTesting my_utf8_remove_whitespace:\n");
+    unsigned char testString[] = " Hello, \t World!\nאמירה    \t\n 😂";
+
+    // Remove whitespace from the test string
+    unsigned char *result = my_utf8_remove_whitespace(testString);
+
+    // Print the result
+    if (result != NULL) {
+        printf("Original String: \"%s\"\n", testString);
+        printf("String without Whitespace: \"%s\"\n", result);
+
+        // Free the allocated memory
+        free(result);
+    }
+
     return 0;
 }
