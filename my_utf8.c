@@ -144,7 +144,7 @@ int my_utf8_decode(unsigned char *input, unsigned char *output) {
 
             int width = (digits < 4) ? 4 : digits;
 
-            sprintf(output, "u\\%.*X", width, codePoint);
+            sprintf(output, "\\u%.*X", width, codePoint);
 
             output += width + 2; // Move the output pointer to the end of the codePoint
             input +=  numBytes; // Move the input pointer to the next character
@@ -402,194 +402,269 @@ unsigned char* my_utf8_remove_whitespace(unsigned const char *input) {
     return result;
 }
 
+// TESTING - helper functions
+// manually compare two strings
+int compare_strings(unsigned char *str1, unsigned char *str2){
+    while (*str1 != '\0' && *str2 != '\0' && *str1 == *str2){
+        str1++;
+        str2++;
+    }
+
+    return (*str1 == '\0' && *str2 == '\0');
+}
+
+// TESTING
+void test_utf8_encode(unsigned char *input, unsigned char *expected){
+    unsigned char output[100];
+
+    int res = my_utf8_encode(input, output);
+
+    if (res == 0 && compare_strings(output, expected)){
+        printf("PASSED: Input=\"%s\", Expected=\"%s\", Output=\"%s\"\n", input, expected, output);
+    }
+    else {
+        printf("FAILED: Input=\"%s\", Expected=\"%s\", Output=\"%s\"\n", input, expected, output);
+
+    }
+}
+
+void test_utf8_decode(unsigned char *input, unsigned char *expected) {
+    unsigned char output[100];
+
+    int res = my_utf8_decode(input, output);
+
+    if (res == 0 && compare_strings(output, expected)) {
+        printf("PASSED: Input=\"%s\", Expected=\"%s\", Output=\"%s\"\n", input, expected, output);
+    } else {
+        printf("FAILED: Input=\"%s\", Expected=\"%s\", Output=\"%s\"\n", input, expected, output);
+
+    }
+}
+
+
+void test_all_utf8_encode(){
+    printf("Testing my_utf8_encode:\n");
+    test_utf8_encode((unsigned char*)"", (unsigned char*)"");
+    test_utf8_encode((unsigned char*)"A", (unsigned char*)"A");
+    test_utf8_encode((unsigned char*)"Hello", (unsigned char*)"Hello");
+    test_utf8_encode((unsigned char*)"\\u1846", (unsigned char*)"ᡆ");
+    test_utf8_encode((unsigned char*)"\\u10D2\\u10D0\\u10DB\\u10D0\\u10E0\\u10EF\\u10DD\\u10D1\\u10D0", (unsigned char*)"გამარჯობა");
+    test_utf8_encode((unsigned char*)"\\u103a8", (unsigned char*)"𐎨");
+    test_utf8_encode((unsigned char*)"\\u1f632\\u1f634", (unsigned char*)"😲😴");
+    test_utf8_encode((unsigned char*)"Hello \\u05D0\\u05E8\\u05D9\\u05D4 \\u1F601", (unsigned char*)"Hello אריה 😁");
+    test_utf8_encode((unsigned char*)"אמירה", (unsigned char*)"אמירה");
+    test_utf8_encode((unsigned char*)"u\\05D0", (unsigned char*)"u\\05D0");
+}
+
+void test_all_utf8_decode(){
+    // make it case-insensitive
+    printf("\nTesting my_utf8_decode:\n");
+    test_utf8_decode((unsigned char*)"", (unsigned char*)"");
+    test_utf8_decode((unsigned char*)"A", (unsigned char*)"A");
+    test_utf8_decode((unsigned char*)"Hello", (unsigned char*)"Hello");
+    test_utf8_decode((unsigned char*)"Ꮂ", (unsigned char*)"\\u13B2");
+    test_utf8_decode((unsigned char*)"Խոսք", (unsigned char*)"\\u053D\\u0578\\u057D\\u0584");
+    test_utf8_decode((unsigned char*)"🀜", (unsigned char*)"\\u1F01C");
+    test_utf8_decode((unsigned char*)"🀤🀲", (unsigned char*)"\\u1F024\\u1F032");
+    test_utf8_decode((unsigned char*)"Hello אריה 😁", (unsigned char*)"Hello \\u05D0\\u05E8\\u05D9\\u05D4 \\u1F601");
+    test_utf8_decode((unsigned char*)"\\u1846", (unsigned char*)"\\u1846");
+
+    // incorrectly encoded?
+}
+
 
 int main() {
-    unsigned char input[] = "Hello \\u05D0\\u05E8\\u05D9\\u05D4 \\u1F601";
-    unsigned char encoded[50] = {0};
-    unsigned char decoded[50] = {0};
+    test_all_utf8_encode();
+    test_all_utf8_decode();
+////    unsigned char input[] = "Hello \\u05D0\\u05E8\\u05D9\\u05D4 \\u1F601";
+////    unsigned char input[] = "u\\05D0";
+//
+////    unsigned char input[] = "\\u10D2\\u10D0\\u10DB\\u10D0\\u10E0\\u10EF\\u10DD\\u10D1\\u10D0";
+//    unsigned char encoded[50] = {0};
+//    unsigned char decoded[50] = {0};
+//    //    int res = my_utf8_decode((unsigned char*)"Հայաստան",decoded);
+//
+////    // Test my_utf8_encode
+//    printf("Testing my_utf8_encode:\n");
+//    printf("Input: %s\n", input);
+//    int encodeResult = my_utf8_encode(input, encoded);
+//    if (encodeResult == 0) {
+//        printf("Encoded: %s\n", encoded);
+//    } else {
+//        printf("Encoding failed\n");
+//    }
 
-    // Test my_utf8_encode
-    printf("Testing my_utf8_encode:\n");
-    printf("Input: %s\n", input);
-    int encodeResult = my_utf8_encode(input, encoded);
-    if (encodeResult == 0) {
-        printf("Encoded: %s\n", encoded);
-    } else {
-        printf("Encoding failed\n");
-        return 1;
-    }
-
-    // Test my_utf8_decode
-    printf("\nTesting my_utf8_decode:\n");
-    printf("Input: %s\n", encoded);
-    int decodeResult = my_utf8_decode(encoded, decoded);
-    if (decodeResult == 0) {
-        printf("Decoded: %s\n", decoded);
-    } else {
-        printf("Decoding failed\n");
-        return 1;
-    }
-
-    // Test my_utf8_check
-    printf("\nTesting my_utf8_check:\n");
-    printf("Input: %s - ", input);
-    if (my_utf8_check(input)) {
-        printf("Valid UTF-8\n");
-    } else {
-        printf("Invalid UTF-8\n");
-    }
-
-
-    // Test my_utf8_check
-    unsigned char test[] = "\xd7\x90";
-    unsigned char backslashTest[] = "\\xd7\\x90";
-    printf("Input: %s- ", backslashTest);
-    if (my_utf8_check(test)) {
-        printf("Valid UTF-8\n");
-    } else {
-        printf("Invalid UTF-8\n");
-    }
-
-    printf("Input: %s - ", encoded);
-    if (my_utf8_check(encoded)) {
-        printf("Valid UTF-8\n");
-    } else {
-        printf("Invalid UTF-8\n");
-    }
-
-    unsigned char invalid[] = "\xc1\xa8\x81";
-    printf("Input: %s - ", invalid);
-    if (my_utf8_check(invalid)) {
-        printf("Valid UTF-8\n");
-    } else {
-        printf("Invalid UTF-8\n");
-    }
-
-    // Test my_utf8_strlen
-    printf("\nTesting my_utf8_strlen:");
-    unsigned char lenInput1[] = "Hello אריה";
-    printf("\nLength of \"%s\":\n%d\n", lenInput1, my_utf8_strlen(lenInput1));
-    unsigned char lenInput2[] = "\xd7\x90\xd7\xaa";
-    unsigned char lenInput2backslash[] = "\\xd7\\x90\\xd7\\xaa";
-    printf("Length of \"%s\":\n%d\n", lenInput2backslash, my_utf8_strlen(lenInput2));
-
-    // Test my_utf8_charat
-    printf("\nTesting my_utf8_charat:\n");
-    unsigned char charAtInput[] = "Hello אריה";
-    for (int index = 0; charAtInput[index] != '\0'; ++index) {
-        unsigned char *result = my_utf8_charat(charAtInput, index);
-        if (result != NULL) {
-            printf("Character at index %d: %.*s\n", index,
-                   (int) (my_utf8_charat(charAtInput, index + 1) - my_utf8_charat(charAtInput, index)),
-                   my_utf8_charat(charAtInput, index));
-        } else {
-            printf("Index %d: Invalid index or encoding\n", index);
-            break;
-        }
-    }
-
-
-    printf("\nTesting my_utf8_strcmp():\n");
-    unsigned char utf8_string1[] = "Hello 世界!";
-    unsigned char utf8_string2[] = "Hello 世界!";
-    unsigned char utf8_string3[] = "No";
-    unsigned char utf8_string4[] = "Yes";
-    unsigned char utf8_chinese[] = "你好";
-    unsigned char utf8_hebrew[] = "שלום";
-
-    printf("Comparing %s and %s: ", utf8_string1, utf8_string2);
-    int result1 = my_utf8_strcmp(utf8_string1, utf8_string2);
-
-    if (result1 == 0) {
-        printf("Strings are equal.\n");
-    } else if (result1 < 0) {
-        printf("String 1 is before String 2.\n");
-    } else {
-        printf("String 1 is after String 2.\n");
-    }
-
-    printf("Comparing %s and %s: ", utf8_string1, utf8_string3);
-    int result2 = my_utf8_strcmp(utf8_string1, utf8_string3);
-    if (result2 == 0) {
-        printf("Strings are equal.\n");
-    } else if (result2 < 0) {
-        printf("String 1 is before String 2.\n");
-    } else {
-        printf("String 1 is after String 2.\n");
-    }
-
-    printf("Comparing %s and %s: ", utf8_string4, utf8_string3);
-    int result3 = my_utf8_strcmp(utf8_string4, utf8_string3);
-    if (result3 == 0) {
-        printf("Strings are equal.\n");
-    } else if (result3 < 0) {
-        printf("String 1 is before String 2.\n");
-    } else {
-        printf("String 1 is after String 2.\n");
-    }
-
-    printf("Comparing %s and %s: ", utf8_chinese, utf8_hebrew);
-    int result4 = my_utf8_strcmp(utf8_chinese, utf8_hebrew);
-    if (result4 == 0) {
-        printf("Strings are equal.\n");
-    } else if (result4 < 0) {
-        printf("String 1 is before String 2.\n");
-    } else {
-        printf("String 1 is after String 2.\n");
-    }
-
-    printf("\nTesting my_utf8_substring_search:\n");
-
-    unsigned char haystack1[] = "Hello Amira";
-    unsigned char haystack2[] = "Hello Amira Amira";
-    unsigned char needle1[] = "Amira";
-//    unsigned char needle2[] = "";
-
-    size_t indices[10]; // Assuming a maximum of 10 occurrences
-    int count = my_utf8_substring_search(haystack1, needle1, indices);
-    printf("String: %s, substring: %s\n", haystack1, needle1);
-
-    if (count == 1) {
-        printf("Substring found at index: %zu\n", indices[0]);
-    } else if (count > 0) {
-        printf("Substring found at indices: ");
-        for (int i = 0; i < count; ++i) {
-            printf("%zu ", indices[i]);
-        }
-        printf("\n");
-    } else {
-        printf("Substring not found.\n");
-    }
-
-    count = my_utf8_substring_search(haystack2, needle1, indices);
-    printf("String: %s, substring: %s\n", haystack2, needle1);
-
-    if (count == 1) {
-        printf("Substring found at index: %zu\n", indices[0]);
-    } else if (count > 0) {
-        printf("Substring found at indices: ");
-        for (int i = 0; i < count; ++i) {
-            printf("%zu ", indices[i]);
-        }
-        printf("\n");
-    } else {
-        printf("Substring not found.\n");
-    }
-
-    printf("\nTesting my_utf8_remove_whitespace:\n");
-    unsigned char testString[] = " Hello, \t World!\nאמירה    \t\n 😂";
-
-    // Remove whitespace from the test string
-    unsigned char *result = my_utf8_remove_whitespace(testString);
-
-    // Print the result
-    if (result != NULL) {
-        printf("Original String: \"%s\"\n", testString);
-        printf("String without Whitespace: \"%s\"\n", result);
-
-        // Free the allocated memory
-        free(result);
-    }
+//    // Test my_utf8_decode
+//    unsigned char input[] = "Խոսք";
+//    printf("\nTesting my_utf8_decode:\n");
+//    printf("Input: %s\n", input);
+//    int decodeResult = my_utf8_decode(input, decoded);
+//    if (decodeResult == 0) {
+//        printf("Decoded:%s\n", decoded);
+//    } else {
+//        printf("Decoding failed\n");
+//    }
+//
+//    // Test my_utf8_check
+//    printf("\nTesting my_utf8_check:\n");
+//    printf("Input: %s - ", input);
+//    if (my_utf8_check(input)) {
+//        printf("Valid UTF-8\n");
+//    } else {
+//        printf("Invalid UTF-8\n");
+//    }
+//
+//
+//    // Test my_utf8_check
+//    unsigned char test[] = "\xd7\x90";
+//    unsigned char backslashTest[] = "\\xd7\\x90";
+//    printf("Input: %s- ", backslashTest);
+//    if (my_utf8_check(test)) {
+//        printf("Valid UTF-8\n");
+//    } else {
+//        printf("Invalid UTF-8\n");
+//    }
+//
+//    printf("Input: %s - ", encoded);
+//    if (my_utf8_check(encoded)) {
+//        printf("Valid UTF-8\n");
+//    } else {
+//        printf("Invalid UTF-8\n");
+//    }
+//
+//    unsigned char invalid[] = "\xc1\xa8\x81";
+//    printf("Input: %s - ", invalid);
+//    if (my_utf8_check(invalid)) {
+//        printf("Valid UTF-8\n");
+//    } else {
+//        printf("Invalid UTF-8\n");
+//    }
+//
+//    // Test my_utf8_strlen
+//    printf("\nTesting my_utf8_strlen:");
+//    unsigned char lenInput1[] = "Hello אריה";
+//    printf("\nLength of \"%s\":\n%d\n", lenInput1, my_utf8_strlen(lenInput1));
+//    unsigned char lenInput2[] = "\xd7\x90\xd7\xaa";
+//    unsigned char lenInput2backslash[] = "\\xd7\\x90\\xd7\\xaa";
+//    printf("Length of \"%s\":\n%d\n", lenInput2backslash, my_utf8_strlen(lenInput2));
+//
+//    // Test my_utf8_charat
+//    printf("\nTesting my_utf8_charat:\n");
+//    unsigned char charAtInput[] = "Hello אריה";
+//    for (int index = 0; charAtInput[index] != '\0'; ++index) {
+//        unsigned char *result = my_utf8_charat(charAtInput, index);
+//        if (result != NULL) {
+//            printf("Character at index %d: %.*s\n", index,
+//                   (int) (my_utf8_charat(charAtInput, index + 1) - my_utf8_charat(charAtInput, index)),
+//                   my_utf8_charat(charAtInput, index));
+//        } else {
+//            printf("Index %d: Invalid index or encoding\n", index);
+//            break;
+//        }
+//    }
+//
+//
+//    printf("\nTesting my_utf8_strcmp():\n");
+//    unsigned char utf8_string1[] = "Hello 世界!";
+//    unsigned char utf8_string2[] = "Hello 世界!";
+//    unsigned char utf8_string3[] = "No";
+//    unsigned char utf8_string4[] = "Yes";
+//    unsigned char utf8_chinese[] = "你好";
+//    unsigned char utf8_hebrew[] = "שלום";
+//
+//    printf("Comparing %s and %s: ", utf8_string1, utf8_string2);
+//    int result1 = my_utf8_strcmp(utf8_string1, utf8_string2);
+//
+//    if (result1 == 0) {
+//        printf("Strings are equal.\n");
+//    } else if (result1 < 0) {
+//        printf("String 1 is before String 2.\n");
+//    } else {
+//        printf("String 1 is after String 2.\n");
+//    }
+//
+//    printf("Comparing %s and %s: ", utf8_string1, utf8_string3);
+//    int result2 = my_utf8_strcmp(utf8_string1, utf8_string3);
+//    if (result2 == 0) {
+//        printf("Strings are equal.\n");
+//    } else if (result2 < 0) {
+//        printf("String 1 is before String 2.\n");
+//    } else {
+//        printf("String 1 is after String 2.\n");
+//    }
+//
+//    printf("Comparing %s and %s: ", utf8_string4, utf8_string3);
+//    int result3 = my_utf8_strcmp(utf8_string4, utf8_string3);
+//    if (result3 == 0) {
+//        printf("Strings are equal.\n");
+//    } else if (result3 < 0) {
+//        printf("String 1 is before String 2.\n");
+//    } else {
+//        printf("String 1 is after String 2.\n");
+//    }
+//
+//    printf("Comparing %s and %s: ", utf8_chinese, utf8_hebrew);
+//    int result4 = my_utf8_strcmp(utf8_chinese, utf8_hebrew);
+//    if (result4 == 0) {
+//        printf("Strings are equal.\n");
+//    } else if (result4 < 0) {
+//        printf("String 1 is before String 2.\n");
+//    } else {
+//        printf("String 1 is after String 2.\n");
+//    }
+//
+//    printf("\nTesting my_utf8_substring_search:\n");
+//
+//    unsigned char haystack1[] = "Hello Amira";
+//    unsigned char haystack2[] = "Hello Amira Amira";
+//    unsigned char needle1[] = "Amira";
+////    unsigned char needle2[] = "";
+//
+//    size_t indices[10]; // Assuming a maximum of 10 occurrences
+//    int count = my_utf8_substring_search(haystack1, needle1, indices);
+//    printf("String: %s, substring: %s\n", haystack1, needle1);
+//
+//    if (count == 1) {
+//        printf("Substring found at index: %zu\n", indices[0]);
+//    } else if (count > 0) {
+//        printf("Substring found at indices: ");
+//        for (int i = 0; i < count; ++i) {
+//            printf("%zu ", indices[i]);
+//        }
+//        printf("\n");
+//    } else {
+//        printf("Substring not found.\n");
+//    }
+//
+//    count = my_utf8_substring_search(haystack2, needle1, indices);
+//    printf("String: %s, substring: %s\n", haystack2, needle1);
+//
+//    if (count == 1) {
+//        printf("Substring found at index: %zu\n", indices[0]);
+//    } else if (count > 0) {
+//        printf("Substring found at indices: ");
+//        for (int i = 0; i < count; ++i) {
+//            printf("%zu ", indices[i]);
+//        }
+//        printf("\n");
+//    } else {
+//        printf("Substring not found.\n");
+//    }
+//
+//    printf("\nTesting my_utf8_remove_whitespace:\n");
+//    unsigned char testString[] = " Hello, \t World!\nאמירה    \t\n 😂";
+//
+//    // Remove whitespace from the test string
+//    unsigned char *result = my_utf8_remove_whitespace(testString);
+//
+//    // Print the result
+//    if (result != NULL) {
+//        printf("Original String: \"%s\"\n", testString);
+//        printf("String without Whitespace: \"%s\"\n", result);
+//
+//        // Free the allocated memory
+//        free(result);
+//    }
 
     return 0;
 }
