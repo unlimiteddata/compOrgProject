@@ -2,6 +2,7 @@
 #include <ctype.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 // helper function to convert hex character to int
 int hexCharToInt(unsigned char c) {
@@ -470,6 +471,17 @@ void test_utf8_check(unsigned char *input, int expected){
     }
 }
 
+void test_utf8_strlen(unsigned char *input, int expected){
+    int res = my_utf8_strlen(input);
+
+    if (res == expected){
+        printf("PASSED: Input=\"%s\", Expected=%d, Result=%d\n", input, expected, res);
+    }
+    else {
+        printf("FAILED: Input=\"%s\", Expected=%d, Result=%d\n", input, expected, res);
+    }
+}
+
 
 void test_all_utf8_encode(){
     printf("Testing my_utf8_encode:\n");
@@ -499,8 +511,6 @@ void test_all_utf8_decode(){
     test_utf8_decode((unsigned char*)"Hello אריה 😁", (unsigned char*)"Hello \\u05D0\\u05E8\\u05D9\\u05D4 \\u1F601");
     test_utf8_decode((unsigned char*)"\\u1846", (unsigned char*)"\\u1846");
     test_utf8_decode((unsigned char*)"\\uZZZZ", (unsigned char*)"\\uZZZZ");
-
-    // incorrectly encoded?
 }
 
 void test_all_utf8_check(){
@@ -517,7 +527,22 @@ void test_all_utf8_check(){
     test_utf8_check((unsigned char*)"\xC0\x80", 0); // Overlong encoding
     test_utf8_check((unsigned char*)"\xED\xA0\x80", 0); // Surrogate pair
     test_utf8_check((unsigned char*)"\xFF\xFF\xFF\xFF", 0); // Surrogate pair
+}
 
+void test_all_utf8_strlen(){
+    printf("\nTesting my_utf8_strlen:\n");
+    test_utf8_strlen((unsigned char*)"", 0);
+    test_utf8_strlen((unsigned char*)"R", 1);
+    test_utf8_strlen((unsigned char*)"Hello", 5);
+    test_utf8_strlen((unsigned char*)"😞😭", 2);
+    test_utf8_strlen((unsigned char*)"Hello שלום", 10);
+    test_utf8_strlen((unsigned char*)"\xd8\x9f\xd9\x81", 2);
+    test_utf8_strlen((unsigned char*)"\\u00E9\\u00A7\\u00B8", 18);
+
+    // Invalid UTF-8 strings
+    test_utf8_strlen((unsigned char*)"\xC0\x80", 1); // Overlong encoding
+    test_utf8_strlen((unsigned char*)"\xED\xA0\x80", 1); // Surrogate pair
+    test_utf8_strlen((unsigned char*)"\xF4\x90\x80\x80\x80", 1); // Surrogate pair
 }
 
 
@@ -525,6 +550,7 @@ int main() {
     test_all_utf8_encode();
     test_all_utf8_decode();
     test_all_utf8_check();
+    test_all_utf8_strlen();
 ////    unsigned char input[] = "Hello \\u05D0\\u05E8\\u05D9\\u05D4 \\u1F601";
 //    unsigned char input[] = "\\u00A3\\u0065llo";
 ////
