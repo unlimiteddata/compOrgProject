@@ -30,7 +30,7 @@ int hexStringToInt(unsigned char *hex) {
 }
 
 // helper function to check if a given character is ASCII
-int is_ascii(unsigned const char *input) {
+int isASCII(unsigned const char *input) {
     unsigned char c = (unsigned char)(*input);
     return c <= 127;
 }
@@ -54,6 +54,13 @@ int my_utf8_encode(unsigned char *input, unsigned char *output) {
             int i;
             for (i = 0; i < 5 && isxdigit(*input); ++i) {
                 hex[i] = *(input++);
+            }
+
+
+            if (i==0){
+                *(encoded++) = '\\';
+                *(encoded++) = 'u';
+                continue;
             }
             int codePoint = hexStringToInt(hex);
 
@@ -94,7 +101,7 @@ int my_utf8_encode(unsigned char *input, unsigned char *output) {
 // for non-ASCII characters.
 int my_utf8_decode(unsigned char *input, unsigned char *output) {
     while (*input != '\0') {
-        if (is_ascii(input)) {
+        if (isASCII(input)) {
             *output = *input;
             ++input;
             ++output;
@@ -161,40 +168,51 @@ int my_utf8_check(unsigned char *string) {
         if ((*string & 0b10000000) == 0) {
             // single byte char
             ++string;
-        }
+        } 
         else if ((*string & 0b11100000) == 0b11000000) {
             // two byte char
-            if ((string[1] & 0b11000000) != 0b10000000) {
+            if ((string[1] & 0b11000000) != 0b10000000 ||
+                (*string & 0b00011111) == 0 ||
+                (string[1] & 0b00111111) == 0) {
                 // incorrect UTF-8 sequence
                 return 0;
             }
             string += 2;
-        }
+        } 
         else if ((*string & 0b11110000) == 0b11100000) {
             // three byte char
-            if ((string[1] & 0b11000000) != 0b10000000
-                || (string[2] & 0b11000000) != 0b10000000) {
+            if ((string[1] & 0b11000000) != 0b10000000 ||
+                (string[2] & 0b11000000) != 0b10000000 ||
+                (*string & 0b00001111) == 0 ||
+                (string[1] & 0b00111111) == 0 ||
+                (string[2] & 0b00111111) == 0) {
                 // incorrect UTF-8 sequence
                 return 0;
             }
             string += 3;
-        }
+        } 
         else if ((*string & 0b11111000) == 0b11110000) {
             // four byte char
-            if ((string[1] & 0b11000000) != 0b10000000
-                || (string[2] & 0b11000000) != 0b10000000
-                || (string[3] & 0b11000000) != 0b10000000) {
+            if ((string[1] & 0b11000000) != 0b10000000 ||
+                (string[2] & 0b11000000) != 0b10000000 ||
+                (string[3] & 0b11000000) != 0b10000000 ||
+                (*string & 0b00000111) == 0 ||
+                (string[1] & 0b00111111) == 0 ||
+                (string[2] & 0b00111111) == 0 ||
+                (string[3] & 0b00111111) == 0) {
                 // incorrect UTF-8 sequence
                 return 0;
             }
             string += 4;
-        }
+        } 
         else {
+            // invalid UTF-8 sequence
             return 0;
         }
     }
     return 1;
 }
+
 
 // return the number of characters in a UTF8 encoded string
 int my_utf8_strlen(unsigned char *string){
@@ -435,9 +453,20 @@ void test_utf8_decode(unsigned char *input, unsigned char *expected) {
 
     if (res == 0 && compare_strings(output, expected)) {
         printf("PASSED: Input=\"%s\", Expected=\"%s\", Output=\"%s\"\n", input, expected, output);
-    } else {
+    } 
+    else {
         printf("FAILED: Input=\"%s\", Expected=\"%s\", Output=\"%s\"\n", input, expected, output);
+    }
+}
 
+void test_utf8_check(unsigned char *input, int expected){
+    int res = my_utf8_check(input);
+
+    if (res == expected){
+        printf("PASSED: Input=\"%s\", Expected=%d, Result=%d\n", input, expected, res);
+    } 
+    else {
+        printf("FAILED: Input=\"%s\", Expected=%d, Result=%d\n", input, expected, res);
     }
 }
 
@@ -450,6 +479,7 @@ void test_all_utf8_encode(){
     test_utf8_encode((unsigned char*)"\\u1846", (unsigned char*)"ᡆ");
     test_utf8_encode((unsigned char*)"\\u10D2\\u10D0\\u10DB\\u10D0\\u10E0\\u10EF\\u10DD\\u10D1\\u10D0", (unsigned char*)"გამარჯობა");
     test_utf8_encode((unsigned char*)"\\u103a8", (unsigned char*)"𐎨");
+    test_utf8_encode((unsigned char*)"\\uZZZZ", (unsigned char*)"\\uZZZZ");
     test_utf8_encode((unsigned char*)"\\u1f632\\u1f634", (unsigned char*)"😲😴");
     test_utf8_encode((unsigned char*)"Hello \\u05D0\\u05E8\\u05D9\\u05D4 \\u1F601", (unsigned char*)"Hello אריה 😁");
     test_utf8_encode((unsigned char*)"אמירה", (unsigned char*)"אמירה");
@@ -468,22 +498,41 @@ void test_all_utf8_decode(){
     test_utf8_decode((unsigned char*)"🀤🀲", (unsigned char*)"\\u1F024\\u1F032");
     test_utf8_decode((unsigned char*)"Hello אריה 😁", (unsigned char*)"Hello \\u05D0\\u05E8\\u05D9\\u05D4 \\u1F601");
     test_utf8_decode((unsigned char*)"\\u1846", (unsigned char*)"\\u1846");
+    test_utf8_decode((unsigned char*)"\\uZZZZ", (unsigned char*)"\\uZZZZ");
 
     // incorrectly encoded?
+}
+
+void test_all_utf8_check(){
+    printf("\nTesting my_utf8_check:\n");
+    test_utf8_check((unsigned char*)"", 1);
+    test_utf8_check((unsigned char*)"Hello", 1);
+    test_utf8_check((unsigned char*)"한국어 문장", 1);
+    test_utf8_check((unsigned char*)"This is አማርኛ and ខ្មែរ", 1);
+    test_utf8_check((unsigned char*)"\\u00E9\\u00A7\\u00B8", 1);
+    test_utf8_check((unsigned char*)"\xd7\x90", 1);
+    test_utf8_check((unsigned char*)"\\uWXYZ", 1);
+    
+    // Invalid UTF-8 strings
+    test_utf8_check((unsigned char*)"\xC0\x80", 0); // Overlong encoding
+    test_utf8_check((unsigned char*)"\xED\xA0\x80", 0); // Surrogate pair
+    test_utf8_check((unsigned char*)"\xFF\xFF\xFF\xFF", 0); // Surrogate pair
+
 }
 
 
 int main() {
     test_all_utf8_encode();
     test_all_utf8_decode();
+    test_all_utf8_check();
 ////    unsigned char input[] = "Hello \\u05D0\\u05E8\\u05D9\\u05D4 \\u1F601";
-////    unsigned char input[] = "u\\05D0";
-//
-////    unsigned char input[] = "\\u10D2\\u10D0\\u10DB\\u10D0\\u10E0\\u10EF\\u10DD\\u10D1\\u10D0";
+//    unsigned char input[] = "\\u00A3\\u0065llo";
+////
+//////    unsigned char input[] = "\\u10D2\\u10D0\\u10DB\\u10D0\\u10E0\\u10EF\\u10DD\\u10D1\\u10D0";
 //    unsigned char encoded[50] = {0};
 //    unsigned char decoded[50] = {0};
-//    //    int res = my_utf8_decode((unsigned char*)"Հայաստան",decoded);
-//
+////    //    int res = my_utf8_decode((unsigned char*)"Հայաստան",decoded);
+////
 ////    // Test my_utf8_encode
 //    printf("Testing my_utf8_encode:\n");
 //    printf("Input: %s\n", input);
@@ -495,7 +544,8 @@ int main() {
 //    }
 
 //    // Test my_utf8_decode
-//    unsigned char input[] = "Խոսք";
+//    unsigned char input[] = "\xC0\x80";
+//    printf("\ntest: %s", "\xC0\x80");
 //    printf("\nTesting my_utf8_decode:\n");
 //    printf("Input: %s\n", input);
 //    int decodeResult = my_utf8_decode(input, decoded);
@@ -504,7 +554,7 @@ int main() {
 //    } else {
 //        printf("Decoding failed\n");
 //    }
-//
+
 //    // Test my_utf8_check
 //    printf("\nTesting my_utf8_check:\n");
 //    printf("Input: %s - ", input);
@@ -513,11 +563,11 @@ int main() {
 //    } else {
 //        printf("Invalid UTF-8\n");
 //    }
-//
-//
+
+
 //    // Test my_utf8_check
-//    unsigned char test[] = "\xd7\x90";
-//    unsigned char backslashTest[] = "\\xd7\\x90";
+//    unsigned char test[] = "\xC0\x80";
+//    unsigned char backslashTest[] = "\\xC0\\x80";
 //    printf("Input: %s- ", backslashTest);
 //    if (my_utf8_check(test)) {
 //        printf("Valid UTF-8\n");
@@ -525,12 +575,12 @@ int main() {
 //        printf("Invalid UTF-8\n");
 //    }
 //
-//    printf("Input: %s - ", encoded);
-//    if (my_utf8_check(encoded)) {
-//        printf("Valid UTF-8\n");
-//    } else {
-//        printf("Invalid UTF-8\n");
-//    }
+////    printf("Input: %s - ", encoded);
+////    if (my_utf8_check(encoded)) {
+////        printf("Valid UTF-8\n");
+////    } else {
+////        printf("Invalid UTF-8\n");
+////    }
 //
 //    unsigned char invalid[] = "\xc1\xa8\x81";
 //    printf("Input: %s - ", invalid);
@@ -539,7 +589,7 @@ int main() {
 //    } else {
 //        printf("Invalid UTF-8\n");
 //    }
-//
+
 //    // Test my_utf8_strlen
 //    printf("\nTesting my_utf8_strlen:");
 //    unsigned char lenInput1[] = "Hello אריה";
