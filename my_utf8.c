@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <ctype.h>
-#include <stdint.h>
 #include <stdlib.h>
 
 // helper function to convert hex character to int
@@ -186,7 +185,7 @@ int my_utf8_decode(unsigned char *input, unsigned char *output) {
                 ++digits;
             }
 
-            // set the wdith for the sprintf function
+            // set the width for the sprintf function
             int width = (digits < 4) ? 4 : digits;
 
             // format and store the unicode code point as "\uXXXX"
@@ -268,7 +267,6 @@ int my_utf8_strlen(unsigned char *string){
     while (*string){ // loop through string
         // extract first byte of current character
         int byte = (int)*string;
-
 
         if ((byte & 0x80) == 0){ // single-byte character
             len++;
@@ -438,7 +436,7 @@ int my_utf8_strcmp(unsigned char *string1, unsigned char *string2) {
     return 0;
 }
 
-// EXTRA FUNCTIONS:
+// EXTRA FUN FUNCTIONS:
 // Function to remove whitespace from a UTF-8 encoded string
 unsigned char* my_utf8_remove_whitespace(unsigned const char *input) {
     if (input == NULL) {
@@ -473,9 +471,6 @@ unsigned char* my_utf8_remove_whitespace(unsigned const char *input) {
 
     return result;
 }
-
-
-
 
 // Function to check if two strings are anagrams (1 if they are, 0 if not)
 int my_utf8_anagram_checker(unsigned char *str1, unsigned char *str2) {
@@ -552,7 +547,6 @@ int my_utf8_anagram_checker(unsigned char *str1, unsigned char *str2) {
     free(charCount2);
     return 1;
 }
-
 
 // TESTING - helper functions
 // manually compare two strings
@@ -736,7 +730,6 @@ void test_all_utf8_strlen(){
     test_utf8_strlen((unsigned char*)"\xF4\x90\x80\x80\x80", 1); // Surrogate pair
 }
 
-
 void test_all_utf8_charat(){
     printf("\nTesting my_utf8_charat:\n");
     // valid index
@@ -779,7 +772,6 @@ void test_all_utf8_strcmp(){
 }
 void test_all_utf8_remove_whitespace() {
     printf("\nTesting my_utf8_remove_whitespace:\n");
-
     test_utf8_remove_whitespace((unsigned char *) "Hello World", (unsigned char *) "HelloWorld");
     test_utf8_remove_whitespace((unsigned char *) "   Remove   \t  Whitespace\n", (unsigned char *) "RemoveWhitespace");
     test_utf8_remove_whitespace((unsigned char *) "NoWhitespaceHere", (unsigned char *) "NoWhitespaceHere");
@@ -802,7 +794,6 @@ void test_all_utf8_anagram_checker(){
     test_utf8_anagram_checker((unsigned char*)"Amira", (unsigned char*) "aisAr", 0);
     test_utf8_anagram_checker((unsigned char*)"Δοκιμές", (unsigned char*) "  Δοκιμές ", 0);
 }
-
 
 int main() {
     test_all_utf8_encode();
