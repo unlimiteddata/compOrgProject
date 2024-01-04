@@ -247,8 +247,77 @@ int my_utf8_strlen(unsigned char *string){
 
 // Returns the UTF8 encoded character at the location specified.
 // If the input string is improperly encoded, this function should
-// return NULL to indicate an error.
-unsigned char *my_utf8_charat(unsigned char *string, int index) {
+//// return NULL to indicate an error.
+//unsigned char *my_utf8_charat(unsigned const char *string, int index) {
+//    if (string == NULL || index < 0) {
+//        return NULL;  // Invalid input
+//    }
+//
+//    int i = 0;
+//    while (string[i] != '\0') {
+//        if ((string[i] & 0x80) == 0) {
+//            // Single-byte character
+//            if (index == 0) {
+//                static unsigned char result[2];
+//                result[0] = string[i];
+//                result[1] = '\0';
+//                return result;
+//            }
+//            index--;
+//        }
+//        else if ((string[i] & 0xE0) == 0xC0) {
+//            // Two-byte character
+//            if (index == 0 && (string[i + 1] & 0xC0) == 0x80) {
+//                static unsigned char result[3];
+//                result[0] = string[i];
+//                result[1] = string[i+1];
+//                result[2] = '\0';
+//                return result;
+//            }
+//            index--;
+//            i++;
+//        }
+//        else if ((string[i] & 0xF0) == 0xE0) {
+//            // Three-byte character
+//            if (index == 0 && (string[i + 1] & 0xC0) == 0x80 && (string[i + 2] & 0xC0) == 0x80) {
+//                static unsigned char result[4];
+//                result[0] = string[i];
+//                result[1] = string[i+1];
+//                result[2] = string[i+2];
+//                result[3] = '\0';
+//                return result;
+//            }
+//            index--;
+//            i += 2;
+//        }
+//        else if ((string[i] & 0xF8) == 0xF0) {
+//            // Four-byte character
+//            if (index == 0 && (string[i + 1] & 0xC0) == 0x80 && (string[i + 2] & 0xC0) == 0x80 && (string[i + 3] & 0xC0) == 0x80) {
+//                static unsigned char result[5];
+//                result[0] = string[i];
+//                result[1] = string[i+1];
+//                result[2] = string[i+2];
+//                result[3] = string[i+3];
+//                result[4] = '\0';
+//                return result;
+//            }
+//            index--;
+//            i += 3;
+//        }
+//        else {
+//            // Invalid UTF-8 character
+//            return NULL;
+//        }
+//        i++;
+//    }
+//
+//    // Index out of bounds or invalid UTF-8 encoding
+//    return NULL;
+//}
+
+
+
+unsigned char *my_utf8_charat(const unsigned char *string, int index) {
     if (string == NULL || index < 0) {
         return NULL;  // Invalid input
     }
@@ -258,17 +327,24 @@ unsigned char *my_utf8_charat(unsigned char *string, int index) {
         if ((string[i] & 0x80) == 0) {
             // Single-byte character
             if (index == 0) {
-                static unsigned char result[2];
+                unsigned char *result =(unsigned char *) malloc(2);
+                if (result == NULL) {
+                    return NULL; // Memory allocation error
+                }
                 result[0] = string[i];
                 result[1] = '\0';
                 return result;
             }
+
             index--;
         }
         else if ((string[i] & 0xE0) == 0xC0) {
             // Two-byte character
             if (index == 0 && (string[i + 1] & 0xC0) == 0x80) {
-                static unsigned char result[3];
+                unsigned char *result = malloc(3);
+                if (result == NULL) {
+                    return NULL; // Memory allocation error
+                }
                 result[0] = string[i];
                 result[1] = string[i+1];
                 result[2] = '\0';
@@ -280,7 +356,10 @@ unsigned char *my_utf8_charat(unsigned char *string, int index) {
         else if ((string[i] & 0xF0) == 0xE0) {
             // Three-byte character
             if (index == 0 && (string[i + 1] & 0xC0) == 0x80 && (string[i + 2] & 0xC0) == 0x80) {
-                static unsigned char result[4];
+                unsigned char *result = malloc(4);
+                if (result == NULL) {
+                    return NULL; // Memory allocation error
+                }
                 result[0] = string[i];
                 result[1] = string[i+1];
                 result[2] = string[i+2];
@@ -293,7 +372,10 @@ unsigned char *my_utf8_charat(unsigned char *string, int index) {
         else if ((string[i] & 0xF8) == 0xF0) {
             // Four-byte character
             if (index == 0 && (string[i + 1] & 0xC0) == 0x80 && (string[i + 2] & 0xC0) == 0x80 && (string[i + 3] & 0xC0) == 0x80) {
-                static unsigned char result[5];
+                unsigned char *result = malloc(5);
+                if (result == NULL) {
+                    return NULL; // Memory allocation error
+                }
                 result[0] = string[i];
                 result[1] = string[i+1];
                 result[2] = string[i+2];
@@ -314,6 +396,7 @@ unsigned char *my_utf8_charat(unsigned char *string, int index) {
     // Index out of bounds or invalid UTF-8 encoding
     return NULL;
 }
+
 
 // Returns whether the two strings are the same (similar result set to strcmp())
 int my_utf8_strcmp(unsigned char *string1, unsigned char *string2) {
@@ -372,38 +455,62 @@ int my_utf8_strcmp(unsigned char *string1, unsigned char *string2) {
 }
 
 // EXTRA FUNCTIONS:
-int my_utf8_substring_search(unsigned char *haystack, unsigned char *needle, size_t *indices) {
-    if (haystack == NULL || needle == NULL || indices == NULL) {
-        return -1; // Invalid input
-    }
+//int my_utf8_substring_search(unsigned char *haystack, unsigned char *needle) {
+//    if (my_utf8_strlen(haystack) == 0 || my_utf8_strlen(needle)== 0) {
+//        return -1; // Invalid input
+//    }
+//
+//    int haystack_len = my_utf8_strlen(haystack);
+//    int needle_len = my_utf8_strlen(needle);
+//
+//    if (needle_len > haystack_len) {
+//        return -1; // Substring is longer than the string, no match possible
+//    }
+//
+//    printf("test: %d\n", haystack_len - needle_len);
+//    for (int i = 0; i <= haystack_len - needle_len; ++i) {
+//        printf("i=%d\n", i);
+//        int j = 0;
+//
+//        while (j < needle_len) {  // Change the condition to '<' instead of '<='
+//            printf("j=%d\n", j);
+//
+//            unsigned char *haystack_char = my_utf8_charat(haystack, i + j);
+//            unsigned char *needle_char = my_utf8_charat(needle, j);
+//
+//            printf("haystack=%s, needle=%s\n", haystack_char, needle_char);
+//
+//            if (haystack_char == NULL || needle_char == NULL) {
+//                break;
+//            }
+//
+//            if (my_utf8_strcmp(haystack_char, needle_char) != 0) {
+//                break;
+//            }
+//
+//            j += my_utf8_strlen(needle_char);
+//        }
+//
+//        if (j == needle_len) {
+//            printf("\ni=%d, j=%d, needle_len=%d\n", i, j, needle_len);
+//            return i; // Substring found
+//        }
+//
+//        // Increment i here so that it moves to the next position in the haystack
+////        i++;
+//    }
+//
+//
+//
+//
+//
+//
+//    return -1; // Substring not found
+//}
 
-    size_t haystack_len = my_utf8_strlen(haystack);
-    size_t needle_len = my_utf8_strlen(needle);
 
-    if (needle_len > haystack_len) {
-        return 0; // Substring is longer than the string, no match possible
-    }
 
-    int count = 0; // Number of occurrences found
 
-    // Iterate through the haystack
-    for (size_t i = 0; i <= haystack_len - needle_len; ++i) {
-        // Check if the substring matches at the current position
-        size_t j;
-        for (j = 0; j < needle_len; ++j) {
-            if (haystack[i + j] != needle[j]) {
-                break; // Substring doesn't match at this position
-            }
-        }
-
-        // If the inner loop completed without breaking, the substring is found
-        if (j == needle_len) {
-            indices[count++] = i;
-        }
-    }
-
-    return count;
-}
 
 // Function to remove whitespace from a UTF-8 encoded string
 unsigned char* my_utf8_remove_whitespace(unsigned const char *input) {
@@ -516,6 +623,52 @@ void test_utf8_charat(unsigned char *input, int index, unsigned char *expected){
     }
 }
 
+void test_utf8_strcmp(unsigned char *string1, unsigned char *string2, int expected){
+    int res = my_utf8_strcmp(string1, string2);
+
+    int sign = (res > 0) - (res < 0); // determine sign of result
+
+    if (sign == expected){
+        printf("PASSED: String 1=\"%s\", String 2=\"%s\", Expected=%d, Result=%d\n", string1, string2, expected, sign);
+    }
+    else {
+        printf("FAILED: String 1=\"%s\", String 2=\"%s\", Expected=%d, Result=%d\n", string1, string2, expected, sign);
+    }
+}
+
+void test_utf8_remove_whitespace(const unsigned char *input, const unsigned char *expected) {
+    unsigned char *result = my_utf8_remove_whitespace(input);
+
+    if (result == NULL) {
+        printf("FAILED: Input=\"%s\", Expected=\"%s\", Result=NULL\n", input, expected);
+        return;
+    }
+
+    if (strcmp((char *)result, (char *)expected) == 0) {
+        printf("PASSED: Input=\"%s\", Expected=\"%s\", Result=\"%s\"\n", input, expected, result);
+    } else {
+        printf("FAILED: Input=\"%s\", Expected=\"%s\", Result=\"%s\"\n", input, expected, result);
+    }
+
+    free(result);
+}
+
+//
+//void test_utf8_substring_search(unsigned char *haystack, unsigned char *needle, int expected_index) {
+//    int res = my_utf8_substring_search(haystack, needle);
+////    printf("\n%d\n", expected_index);
+//
+//    if (res == expected_index) {
+//        printf("PASSED: String=\"%s\", Substring=\"%s\", Expected Index=%d, Actual Index=%d\n", haystack, needle, expected_index, res);
+//    }
+//    else {
+//        printf("FAILED: String=\"%s\", Substring=\"%s\", Expected Index=%d, Actual Index=%d\n", haystack, needle, expected_index,  res);
+//    }
+//}
+
+
+
+
 void test_all_utf8_encode(){
     printf("Testing my_utf8_encode:\n");
     test_utf8_encode((unsigned char*)"", (unsigned char*)"");
@@ -533,7 +686,6 @@ void test_all_utf8_encode(){
 }
 
 void test_all_utf8_decode(){
-    // make it case-insensitive
     printf("\nTesting my_utf8_decode:\n");
     test_utf8_decode((unsigned char*)"", (unsigned char*)"");
     test_utf8_decode((unsigned char*)"A", (unsigned char*)"A");
@@ -600,8 +752,58 @@ void test_all_utf8_charat(){
     test_utf8_charat((unsigned char*)"\xf0\x9e\xb8\x99\xf0\x9e\xb8\xbb", 4, NULL);
     test_utf8_charat((unsigned char*)"\xC0\x80", 4, NULL); // overlong
     test_utf8_charat((unsigned char*)"\xED\xA0\x80", 46, NULL); // Surrogate pair
-
 }
+
+void test_all_utf8_strcmp(){
+    // should return 0 if string1 == string2,
+    // -1 if string1 is before string2, 1 if string1 is after string2
+    printf("\nTesting my_utf8_strcmp:\n");
+    test_utf8_strcmp((unsigned char*)"",(unsigned char*)"", 0);
+    test_utf8_strcmp((unsigned char*)"Amira",(unsigned char*)"", 1);
+    test_utf8_strcmp((unsigned char*)"",(unsigned char*)"Amira", -1);
+    test_utf8_strcmp((unsigned char*)"hello", (unsigned char*)"hello", 0);
+    test_utf8_strcmp((unsigned char*)"abc", (unsigned char*)"def", -1);
+    test_utf8_strcmp((unsigned char*)"def",(unsigned char*)"abc", 1);
+    test_utf8_strcmp((unsigned char*)"চরিত্র",(unsigned char*)"চরিত্র", 0);
+    test_utf8_strcmp((unsigned char*)"ලිපිය",(unsigned char*)"จดหมาย", -1);
+    test_utf8_strcmp((unsigned char*)"ఉత్తరం",(unsigned char*)"מכתב", 1);
+    test_utf8_strcmp((unsigned char*)"கடிதம்",(unsigned char*)"😎", -1);
+    test_utf8_strcmp((unsigned char*)"ဈ",(unsigned char*)"\xe1\x80\x88", 0);
+    test_utf8_strcmp((unsigned char*)"😁 Hello",(unsigned char*)"信 yes", 1);
+    test_utf8_strcmp((unsigned char*)"\xC0\x80",(unsigned char*)"a", 1); // overlong
+    test_utf8_strcmp((unsigned char*)"computer",(unsigned char*)"\xE0\x90\x88", -1); // overlong
+    test_utf8_strcmp((unsigned char*)"\xED\xA0\x90",(unsigned char*)"ASCII", 1); // invalid surrogate pair
+}
+void test_all_utf8_remove_whitespace(){
+    printf("\nTesting my_utf8_remove_whitespace():\n");
+
+    test_utf8_remove_whitespace((unsigned char*)"Hello World", (unsigned char*)"HelloWorld");
+    test_utf8_remove_whitespace((unsigned char*)"   Remove   \t  Whitespace\n", (unsigned char*)"RemoveWhitespace");
+    test_utf8_remove_whitespace((unsigned char*)"NoWhitespaceHere", (unsigned char*)"NoWhitespaceHere");
+    test_utf8_remove_whitespace((unsigned char*)"", (unsigned char*)"");
+    test_utf8_remove_whitespace((unsigned char*)"     ", (unsigned char*)"");
+    test_utf8_remove_whitespace((unsigned char*)"\n\t\r", (unsigned char*)"");
+    test_utf8_remove_whitespace((unsigned char*)"Привет, \t\nмир    \n\r!", (unsigned char*)"Привет,мир!");
+    test_utf8_remove_whitespace((unsigned char*)"Υπάρχει χώρος", (unsigned char*)"Привет,мир!");
+    test_utf8_remove_whitespace((unsigned char*)"\xcf\x87\xcf\x8e\t\xcf\x81\n\xce\xbf\xcf\x82", (unsigned char*)"χώρος");
+
+}// \u03C7\u03CE\u03C1\u03BF\u03C2
+
+
+//void test_all_utf8_substring_search(){
+//    printf("\nTesting my_utf8_substring_search:\n");
+//    test_utf8_substring_search((unsigned char*)"中文句子", (unsigned char*)"子", 3);
+////    test_utf8_substring_search((unsigned char*)"α a Greek letter? α", (unsigned char*)"",-1);
+//    test_utf8_substring_search((unsigned char*)"Testing the end", (unsigned char*)"d", 14);
+////    test_utf8_substring_search((unsigned char*)"Hello World", (unsigned char*)"World", 6);
+////    test_utf8_substring_search((unsigned char*)"Is α a Greek letter? α", (unsigned char*)"α",3);
+////    test_utf8_substring_search((unsigned char*)"α a Greek letter? α", (unsigned char*)"α",0);
+////
+////
+////    test_utf8_substring_search((unsigned char*)"Is α a Greek letter? α", (unsigned char*)"p",-1);
+//
+//
+//}
 
 
 int main() {
@@ -610,201 +812,9 @@ int main() {
     test_all_utf8_check();
     test_all_utf8_strlen();
     test_all_utf8_charat();
-////    unsigned char input[] = "Hello \\u05D0\\u05E8\\u05D9\\u05D4 \\u1F601";
-//    unsigned char input[] = "\\u00A3\\u0065llo";
-////
-//////    unsigned char input[] = "\\u10D2\\u10D0\\u10DB\\u10D0\\u10E0\\u10EF\\u10DD\\u10D1\\u10D0";
-//    unsigned char encoded[50] = {0};
-//    unsigned char decoded[50] = {0};
-////    //    int res = my_utf8_decode((unsigned char*)"Հայաստան",decoded);
-////
-////    // Test my_utf8_encode
-//    printf("Testing my_utf8_encode:\n");
-//    printf("Input: %s\n", input);
-//    int encodeResult = my_utf8_encode(input, encoded);
-//    if (encodeResult == 0) {
-//        printf("Encoded: %s\n", encoded);
-//    } else {
-//        printf("Encoding failed\n");
-//    }
-
-//    // Test my_utf8_decode
-//    unsigned char input[] = "\xC0\x80";
-//    printf("\ntest: %s", "\xC0\x80");
-//    printf("\nTesting my_utf8_decode:\n");
-//    printf("Input: %s\n", input);
-//    int decodeResult = my_utf8_decode(input, decoded);
-//    if (decodeResult == 0) {
-//        printf("Decoded:%s\n", decoded);
-//    } else {
-//        printf("Decoding failed\n");
-//    }
-
-//    // Test my_utf8_check
-//    printf("\nTesting my_utf8_check:\n");
-//    printf("Input: %s - ", input);
-//    if (my_utf8_check(input)) {
-//        printf("Valid UTF-8\n");
-//    } else {
-//        printf("Invalid UTF-8\n");
-//    }
-
-
-//    // Test my_utf8_check
-//    unsigned char test[] = "\xC0\x80";
-//    unsigned char backslashTest[] = "\\xC0\\x80";
-//    printf("Input: %s- ", backslashTest);
-//    if (my_utf8_check(test)) {
-//        printf("Valid UTF-8\n");
-//    } else {
-//        printf("Invalid UTF-8\n");
-//    }
-//
-////    printf("Input: %s - ", encoded);
-////    if (my_utf8_check(encoded)) {
-////        printf("Valid UTF-8\n");
-////    } else {
-////        printf("Invalid UTF-8\n");
-////    }
-//
-//    unsigned char invalid[] = "\xc1\xa8\x81";
-//    printf("Input: %s - ", invalid);
-//    if (my_utf8_check(invalid)) {
-//        printf("Valid UTF-8\n");
-//    } else {
-//        printf("Invalid UTF-8\n");
-//    }
-
-//    // Test my_utf8_strlen
-//    printf("\nTesting my_utf8_strlen:");
-//    unsigned char lenInput1[] = "Hello אריה";
-//    printf("\nLength of \"%s\":\n%d\n", lenInput1, my_utf8_strlen(lenInput1));
-//    unsigned char lenInput2[] = "\xd7\x90\xd7\xaa";
-//    unsigned char lenInput2backslash[] = "\\xd7\\x90\\xd7\\xaa";
-//    printf("Length of \"%s\":\n%d\n", lenInput2backslash, my_utf8_strlen(lenInput2));
-//
-    // Test my_utf8_charat
-//    printf("\nTesting my_utf8_charat:\n");
-//    unsigned char charAtInput[] = "ສະບາຍດີ";
-//    int index = 3;
-//    unsigned char *result = my_utf8_charat(charAtInput, index);
-//
-//    printf("Character at index: %s", result);
-
-//    for (int index = 0; charAtInput[index] != '\0'; ++index) {
-//        unsigned char *result = my_utf8_charat(charAtInput, index);
-//        if (result != NULL) {
-//            printf("Character at index %d: %.*s\n", index,
-//                   (int) (my_utf8_charat(charAtInput, index + 1) - my_utf8_charat(charAtInput, index)),
-//                   my_utf8_charat(charAtInput, index));
-//        } else {
-//            printf("Index %d: Invalid index or encoding\n", index);
-//            break;
-//        }
-//    }
-//
-//
-//    printf("\nTesting my_utf8_strcmp():\n");
-//    unsigned char utf8_string1[] = "Hello 世界!";
-//    unsigned char utf8_string2[] = "Hello 世界!";
-//    unsigned char utf8_string3[] = "No";
-//    unsigned char utf8_string4[] = "Yes";
-//    unsigned char utf8_chinese[] = "你好";
-//    unsigned char utf8_hebrew[] = "שלום";
-//
-//    printf("Comparing %s and %s: ", utf8_string1, utf8_string2);
-//    int result1 = my_utf8_strcmp(utf8_string1, utf8_string2);
-//
-//    if (result1 == 0) {
-//        printf("Strings are equal.\n");
-//    } else if (result1 < 0) {
-//        printf("String 1 is before String 2.\n");
-//    } else {
-//        printf("String 1 is after String 2.\n");
-//    }
-//
-//    printf("Comparing %s and %s: ", utf8_string1, utf8_string3);
-//    int result2 = my_utf8_strcmp(utf8_string1, utf8_string3);
-//    if (result2 == 0) {
-//        printf("Strings are equal.\n");
-//    } else if (result2 < 0) {
-//        printf("String 1 is before String 2.\n");
-//    } else {
-//        printf("String 1 is after String 2.\n");
-//    }
-//
-//    printf("Comparing %s and %s: ", utf8_string4, utf8_string3);
-//    int result3 = my_utf8_strcmp(utf8_string4, utf8_string3);
-//    if (result3 == 0) {
-//        printf("Strings are equal.\n");
-//    } else if (result3 < 0) {
-//        printf("String 1 is before String 2.\n");
-//    } else {
-//        printf("String 1 is after String 2.\n");
-//    }
-//
-//    printf("Comparing %s and %s: ", utf8_chinese, utf8_hebrew);
-//    int result4 = my_utf8_strcmp(utf8_chinese, utf8_hebrew);
-//    if (result4 == 0) {
-//        printf("Strings are equal.\n");
-//    } else if (result4 < 0) {
-//        printf("String 1 is before String 2.\n");
-//    } else {
-//        printf("String 1 is after String 2.\n");
-//    }
-//
-//    printf("\nTesting my_utf8_substring_search:\n");
-//
-//    unsigned char haystack1[] = "Hello Amira";
-//    unsigned char haystack2[] = "Hello Amira Amira";
-//    unsigned char needle1[] = "Amira";
-////    unsigned char needle2[] = "";
-//
-//    size_t indices[10]; // Assuming a maximum of 10 occurrences
-//    int count = my_utf8_substring_search(haystack1, needle1, indices);
-//    printf("String: %s, substring: %s\n", haystack1, needle1);
-//
-//    if (count == 1) {
-//        printf("Substring found at index: %zu\n", indices[0]);
-//    } else if (count > 0) {
-//        printf("Substring found at indices: ");
-//        for (int i = 0; i < count; ++i) {
-//            printf("%zu ", indices[i]);
-//        }
-//        printf("\n");
-//    } else {
-//        printf("Substring not found.\n");
-//    }
-//
-//    count = my_utf8_substring_search(haystack2, needle1, indices);
-//    printf("String: %s, substring: %s\n", haystack2, needle1);
-//
-//    if (count == 1) {
-//        printf("Substring found at index: %zu\n", indices[0]);
-//    } else if (count > 0) {
-//        printf("Substring found at indices: ");
-//        for (int i = 0; i < count; ++i) {
-//            printf("%zu ", indices[i]);
-//        }
-//        printf("\n");
-//    } else {
-//        printf("Substring not found.\n");
-//    }
-//
-//    printf("\nTesting my_utf8_remove_whitespace:\n");
-//    unsigned char testString[] = " Hello, \t World!\nאמירה    \t\n 😂";
-//
-//    // Remove whitespace from the test string
-//    unsigned char *result = my_utf8_remove_whitespace(testString);
-//
-//    // Print the result
-//    if (result != NULL) {
-//        printf("Original String: \"%s\"\n", testString);
-//        printf("String without Whitespace: \"%s\"\n", result);
-//
-//        // Free the allocated memory
-//        free(result);
-//    }
+    test_all_utf8_strcmp();
+    test_all_utf8_remove_whitespace();
+//    test_all_utf8_substring_search();
 
     return 0;
 }
