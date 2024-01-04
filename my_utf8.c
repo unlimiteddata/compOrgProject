@@ -19,7 +19,7 @@ int hexCharToInt(unsigned char c) {
 // helper function to convert hex string to int
 int hexStringToInt(unsigned char *hex) {
     int result = 0;
-    while (*hex != '\0') {
+    while (*hex != '\0') { // while not at end of string
         int digit = hexCharToInt(*(hex++));
         if (digit < 0) {
             return -1; // Invalid hexadecimal string
@@ -420,26 +420,67 @@ int utf8CharLen(unsigned const char *str, int index) {
 
 }
 
+int getUTF8CharInfo(unsigned const char *str, int index, uint32_t *currentChar, int *bytes) {
+    *currentChar = 0;
+    *bytes = 0;
+
+    // Determine the number of bytes in the UTF-8 character
+    if ((str[index] & 0x80) == 0) {
+        *currentChar = str[index];
+        *bytes = 1;
+    } else if ((str[index] & 0xE0) == 0xC0) {
+        *currentChar = str[index] & 0x1F;
+        *bytes = 2;
+    } else if ((str[index] & 0xF0) == 0xE0) {
+        *currentChar = str[index] & 0x0F;
+        *bytes = 3;
+    } else if ((str[index] & 0xF8) == 0xF0) {
+        *currentChar = str[index] & 0x07;
+        *bytes = 4;
+    } else if ((str[index] & 0xFC) == 0xF8) {
+        *currentChar = str[index] & 0x03;
+        *bytes = 5;
+    } else if ((str[index] & 0xFE) == 0xFC) {
+        *currentChar = str[index] & 0x01;
+        *bytes = 6;
+    } else {
+        // Invalid UTF-8 sequence
+        return -1;
+    }
+
+    // Read the remaining bytes of the UTF-8 character
+    for (int j = 1; j < *bytes; ++j) {
+        if ((str[index + j] & 0b11000000) != 0b10000000) {
+            // Malformed UTF-8 sequence
+            return -1;
+        }
+        *currentChar = (*currentChar << 6) | (str[index + j] & 0b00111111);
+    }
+
+    return 0; // Success
+}
+
 
 // Function to check if two strings are anagrams
 int my_utf8_anagram_checker(unsigned char *str1, unsigned char *str2) {
     if (str1 == NULL || str2 == NULL) {
+        printf("Invalid input.\n");
         return 0;
     }
 
+    // Check the lengths of the strings
     int len1 = my_utf8_strlen(str1);
     int len2 = my_utf8_strlen(str2);
 
     if (len1 != len2) {
-        return 0; // Different lengths, not anagrams
+        return 0; // If lengths are different, strings cannot be anagrams
     }
 
     // Allocate memory for character count arrays
-    int *charCount1 = (int*)calloc(256, sizeof(int));  // Assuming ASCII characters (8-bit)
-    int *charCount2 = (int*)calloc(256, sizeof(int));
+    int *charCount1 = (int*)calloc(2048, sizeof(int));  // Assume a maximum of 2048 characters
+    int *charCount2 = (int*)calloc(2048, sizeof(int));
 
     if (charCount1 == NULL || charCount2 == NULL) {
-        printf("Memory allocation failed.\n");
         free(charCount1);
         free(charCount2);
         return 0;
@@ -451,35 +492,11 @@ int my_utf8_anagram_checker(unsigned char *str1, unsigned char *str2) {
         uint32_t currentChar;
         int bytes;
 
-        // Determine the number of bytes in the current UTF-8 character
-        if ((str1[i] & 0x80) == 0) {
-            currentChar = str1[i];
-            bytes = 1;
-        } else if ((str1[i] & 0xE0) == 0xC0) {
-            currentChar = str1[i] & 0x1F;
-            bytes = 2;
-        } else if ((str1[i] & 0xF0) == 0xE0) {
-            currentChar = str1[i] & 0x0F;
-            bytes = 3;
-        } else if ((str1[i] & 0xF8) == 0xF0) {
-            currentChar = str1[i] & 0x07;
-            bytes = 4;
-        } else {
-            // Invalid UTF-8 sequence
+        // Check for errors in obtaining UTF-8 character information
+        if (getUTF8CharInfo(str1, i, &currentChar, &bytes) == -1) {
             free(charCount1);
             free(charCount2);
             return 0;
-        }
-
-        // Retrieve the remaining bytes of the UTF-8 character
-        for (int j = 1; j < bytes; ++j) {
-            if ((str1[i + j] & 0xC0) != 0x80) {
-                // Invalid UTF-8 sequence
-                free(charCount1);
-                free(charCount2);
-                return 0;
-            }
-            currentChar = (currentChar << 6) | (str1[i + j] & 0x3F);
         }
 
         charCount1[currentChar]++;
@@ -492,35 +509,11 @@ int my_utf8_anagram_checker(unsigned char *str1, unsigned char *str2) {
         uint32_t currentChar;
         int bytes;
 
-        // Determine the number of bytes in the current UTF-8 character
-        if ((str2[i] & 0x80) == 0) {
-            currentChar = str2[i];
-            bytes = 1;
-        } else if ((str2[i] & 0xE0) == 0xC0) {
-            currentChar = str2[i] & 0x1F;
-            bytes = 2;
-        } else if ((str2[i] & 0xF0) == 0xE0) {
-            currentChar = str2[i] & 0x0F;
-            bytes = 3;
-        } else if ((str2[i] & 0xF8) == 0xF0) {
-            currentChar = str2[i] & 0x07;
-            bytes = 4;
-        } else {
-            // Invalid UTF-8 sequence
+        // Check for errors in obtaining UTF-8 character information
+        if (getUTF8CharInfo(str2, i, &currentChar, &bytes) == -1) {
             free(charCount1);
             free(charCount2);
             return 0;
-        }
-
-        // Retrieve the remaining bytes of the UTF-8 character
-        for (int j = 1; j < bytes; ++j) {
-            if ((str2[i + j] & 0xC0) != 0x80) {
-                // Invalid UTF-8 sequence
-                free(charCount1);
-                free(charCount2);
-                return 0;
-            }
-            currentChar = (currentChar << 6) | (str2[i + j] & 0x3F);
         }
 
         charCount2[currentChar]++;
@@ -528,7 +521,7 @@ int my_utf8_anagram_checker(unsigned char *str1, unsigned char *str2) {
     }
 
     // Compare character counts
-    for (int j = 0; j < 256; ++j) {
+    for (int j = 0; j < 2048; ++j) {
         if (charCount1[j] != charCount2[j]) {
             free(charCount1);
             free(charCount2);
@@ -541,6 +534,12 @@ int my_utf8_anagram_checker(unsigned char *str1, unsigned char *str2) {
     free(charCount2);
     return 1;
 }
+
+
+
+
+
+
 
 
 // TESTING - helper functions
@@ -786,11 +785,15 @@ void test_all_utf8_remove_whitespace() {
 
 void test_all_utf8_anagram_checker(){
     printf("\nTesting my_utf8_anagram_checker():\n");
+    test_utf8_anagram_checker((unsigned char*)"A", (unsigned char*) "A", 1);
     test_utf8_anagram_checker((unsigned char*)"Amira", (unsigned char*) "Amira", 1);
     test_utf8_anagram_checker((unsigned char*)"Amira", (unsigned char*) "aimAr", 1);
     test_utf8_anagram_checker((unsigned char*)"Amira", (unsigned char*) "aisAr", 0);
+    test_utf8_anagram_checker((unsigned char*)"Hello", (unsigned char*) "world", 0);
     test_utf8_anagram_checker((unsigned char*)"是的中國", (unsigned char*) "國中是的", 1);
+//    test_utf8_anagram_checker((unsigned char*)"Amira I", (unsigned char*) "Amira 😁", 1);
     test_utf8_anagram_checker((unsigned char*)"", (unsigned char*) "", 1);
+//    test_utf8_anagram_checker((unsigned char*)"😁", (unsigned char*) "😁", 1);
 }
 
 
