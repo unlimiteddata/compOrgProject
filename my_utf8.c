@@ -19,11 +19,14 @@ int hexCharToInt(unsigned char c) {
 // helper function to convert hex string to int
 int hexStringToInt(unsigned char *hex) {
     int result = 0;
-    while (*hex != '\0') { // while not at end of string
+    while (*hex) { // while not at end of string
+        // dereference cur position in hex string, increment pointer to next
+        // char in the string --> convert to Int
         int digit = hexCharToInt(*(hex++));
         if (digit < 0) {
             return -1; // Invalid hexadecimal string
         }
+        // shift and add the digit (hex = base 16)
         result = result * 16 + digit;
     }
     return result;
@@ -35,6 +38,57 @@ int isASCII(unsigned const char *input) {
     return c <= 127;
 }
 
+// helper function to retrieve information about a UTF8 character at a specified
+// index in a string
+int getUTF8CharInfo(unsigned const char *str, int index, int *currentChar, int *bytes) {
+    *currentChar = 0;
+    *bytes = 0;
+
+    // Determine the number of bytes in the UTF-8 character
+    if ((str[index] & 0x80) == 0) {// Single-byte character
+        // checks if MSB = 0; if true, single byte encoding
+        *currentChar = str[index];
+        *bytes = 1;
+    } else if ((str[index] & 0xE0) == 0xC0) { // two-byte character
+        // checks if the first three bits of the first byte = 110
+        // extract the lower five bytes of the first byte (excluding 110)
+        *currentChar = str[index] & 0x1F;
+        *bytes = 2;
+    } else if ((str[index] & 0xF0) == 0xE0) { // three-byte character
+        // check if first four bits are 1110
+        // extract lower four bits of the first byte
+        *currentChar = str[index] & 0x0F;
+        *bytes = 3;
+    } else if ((str[index] & 0xF8) == 0xF0) { // four-byte character
+        // check if first five bits are 11110
+        // extract lower three bits of the first byte
+        *currentChar = str[index] & 0x07;
+        *bytes = 4;
+    } else {
+        // Invalid UTF-8 sequence
+        return -1;
+    }
+
+    // Read the remaining bytes of the UTF-8 sequence
+    for (int j = 1; j < *bytes; ++j) {
+        // check if the next byte in the sequence is a valid
+        // continuation byte
+        if ((str[index + j] & 0xC0) != 0x80) {
+            // Malformed UTF-8 sequence
+            return -1;
+        }
+
+        // shift the existing bit by 6 bits, making room for the 6
+        // bit from the current byte to be appended.
+        // isolate the lower 6 bits of the current byte (excluding the
+        // leading '10' bits)
+        // combine the shifted codepoint and the current byte by OR
+        *currentChar = (*currentChar << 6) | (str[index + j] & 0x3F);
+    }
+
+    return 0; // Success
+}
+
 // Encoding a UTF8 string, taking as input an ASCII string,
 // with UTF8 characters encoded using the Codepoint numbering
 // scheme notation, and returns a UTF8 encoded string.
@@ -43,41 +97,52 @@ int my_utf8_encode(unsigned char *input, unsigned char *output) {
         return -1; // Invalid
     }
 
-    unsigned char *encoded = output;
+    unsigned char *encoded = output; // pointer to output buffer
 
-    while (*input != '\0') {
-        if ((*input == '\\' && *(input + 1) == 'u')) {
+    while (*input) { // loop through each character in input string
+        if ((*input == '\\' && *(input + 1) == 'u')) { // if unicode sequence
             input += 2; // Move past "\u"
 
             // Convert hexadecimal string to integer
             unsigned char hex[6] = {0}; // 5 hex digits + null terminator
             int i;
             for (i = 0; i < 5 && isxdigit(*input); ++i) {
-                hex[i] = *(input++);
+                hex[i] = *(input++); // extract up to 5 hex digits from input
             }
 
-
+            // if no valid hex digits were encountered after the \u
             if (i==0){
                 *(encoded++) = '\\';
                 *(encoded++) = 'u';
-                continue;
+                continue; // go to next iteration of the loop
             }
+
+            //  convert hex string to codepoint
             int codePoint = hexStringToInt(hex);
 
             // Encode the Unicode code point into UTF-8 using bit shifts
             if (codePoint <= 0x7F) { // one byte encoding
+                // no shifting needed
                 *(encoded++) = (char)codePoint;
             }
             else if (codePoint <= 0x7FF) { // two byte encoding
+                // get higher-order bits and OR with 0xC0 (11000000) to extract
+                // leading byte
+                // lower-order bits used to create a trailing byte by
+                // ORing with 0x80 (10000000)
                 *(encoded++) = (char)(0xC0 | ((codePoint >> 6) & 0x1F));
                 *(encoded++) = (char)(0x80 | (codePoint & 0x3F));
             }
             else if (codePoint <= 0xFFFF) { // three byte encoding
+                // higher-order bits --> first byte (11100000 = 0xE0)
+                // middle --> 2nd byte (10000000 = 0x80)
+                // lower --> third byte (10000000 = 0x80)
                 *(encoded++) = (char)(0xE0 | ((codePoint >> 12) & 0x0F));
                 *(encoded++) = (char)(0x80 | ((codePoint >> 6) & 0x3F));
                 *(encoded++) = (char)(0x80 | (codePoint & 0x3F));
             }
             else if (codePoint <= 0x10FFFF) { // four byte encoding
+                // same approach as earlier bytes
                 *(encoded++) = (char)(0xF0 | ((codePoint >> 18) & 0x07));
                 *(encoded++) = (char)(0x80 | ((codePoint >> 12) & 0x3F));
                 *(encoded++) = (char)(0x80 | ((codePoint >> 6) & 0x3F));
@@ -87,7 +152,8 @@ int my_utf8_encode(unsigned char *input, unsigned char *output) {
                 return -1; // Invalid Unicode code point
             }
         }
-        else {
+        else { // must be regular ASCII
+            // copy the ASCII to the output string as is
             *(encoded++) = *(input++);
         }
     }
@@ -100,56 +166,30 @@ int my_utf8_encode(unsigned char *input, unsigned char *output) {
 // representation where possible, and UTF8 character representation
 // for non-ASCII characters.
 int my_utf8_decode(unsigned char *input, unsigned char *output) {
-    while (*input != '\0') {
+    while (*input) {
         if (isASCII(input)) {
-            *output = *input;
-            ++input;
-            ++output;
+            // if character is ASCII, copy as is to output
+            *(output++) = *(input++);
         }
-        else {
-            // Non-ASCII character, handle UTF-8 decoding
-            uint32_t codePoint = 0;
+        else { // Non-ASCII character, handle UTF-8 decoding
+            int codePoint = 0;
             int  numBytes = 0;
 
-            // Determine the number of bytes in the UTF-8 sequence
-            if ((*input & 0b10000000) == 0) {
-                // Single-byte character
-                codePoint = *input;
-                numBytes = 1;
-            }
-            else if ((*input & 0b11100000) == 0b11000000) {
-                // Two-byte character
-                codePoint = *input & 0b00011111;
-                numBytes = 2;
-            }
-            else if ((*input & 0b11110000) == 0b11100000) {
-                // Three-byte character
-                codePoint = *input & 0b00001111;
-                numBytes = 3;
-            }
-            else if ((*input & 0b11111000) == 0b11110000) {
-                // Four-byte character
-                codePoint = *input & 0b00000111;
-                numBytes = 4;
+            if (getUTF8CharInfo(input, 0, &codePoint, &numBytes) == -1) {
+                return -1;
             }
 
-            // Read the remaining bytes of the UTF-8 sequence
-            for (int i = 1; i <  numBytes; ++i) {
-                if ((input[i] & 0b11000000) != 0b10000000) {
-                    // Malformed UTF-8 sequence
-                    return -1;
-                }
-                codePoint = (codePoint << 6) | (input[i] & 0b00111111);
-            }
-
+            // Calculate the number of digits in the Unicode code point
             int digits = 1;
-            uint32_t  temp = codePoint;
+            int  temp = codePoint;
             while (temp >>= 4){
                 ++digits;
             }
 
+            // set the wdith for the sprintf function
             int width = (digits < 4) ? 4 : digits;
 
+            // format and store the unicode code point as "\uXXXX"
             sprintf(output, "\\u%.*X", width, codePoint);
 
             output += width + 2; // Move the output pointer to the end of the codePoint
@@ -161,82 +201,94 @@ int my_utf8_decode(unsigned char *input, unsigned char *output) {
     return 0;       // Success
 }
 
-// validate that the input string is a valid UTF8 encoded string
+// Validate that the input string is a valid UTF8 encoded string
 int my_utf8_check(unsigned char *string) {
-    while (*string != '\0') {
-        if ((*string & 0b10000000) == 0) {
-            // single byte char
-            ++string;
-        } 
-        else if ((*string & 0b11100000) == 0b11000000) {
-            // two byte char
-            if ((string[1] & 0b11000000) != 0b10000000 ||
-                (*string & 0b00011111) == 0 ||
-                (string[1] & 0b00111111) == 0) {
-                // incorrect UTF-8 sequence
+    while (*string) { // loop through string
+        if ((*string & 0x80) == 0) {
+            // single-byte character (ASCII)
+            ++string; // move to next character
+        }
+        // check if current character = start of two-byte UTF-8 character
+        else if ((*string & 0xE0) == 0xC0) {
+            // validate second byte
+            if ((string[1] & 0xC0) != 0x80 || // check if byte 2 = continuation byte
+                (*string & 0x1F) == 0 || // check if first byte has a valid format
+                (string[1] & 0x3F) == 0) { // check if second byte has valid format
+                // Incorrect UTF-8 sequence
                 return 0;
             }
+            // move the pointer to next character after sequence
             string += 2;
-        } 
-        else if ((*string & 0b11110000) == 0b11100000) {
-            // three byte char
-            if ((string[1] & 0b11000000) != 0b10000000 ||
-                (string[2] & 0b11000000) != 0b10000000 ||
-                (*string & 0b00001111) == 0 ||
-                (string[1] & 0b00111111) == 0 ||
-                (string[2] & 0b00111111) == 0) {
-                // incorrect UTF-8 sequence
+        }
+        // check if current character = start of three-byte UTF-8 character
+        else if ((*string & 0xF0) == 0xE0) {
+            // validate second and third bytes
+            if ((string[1] & 0xC0) != 0x80 || // check if byte 2 = continuation byte
+                (string[2] & 0xC0) != 0x80 || // check if byte 3 = continuation byte
+                (*string & 0xF) == 0 || // check if first byte has a valid format
+                (string[1] & 0x3F) == 0 || // check if second byte has a valid format
+                (string[2] & 0x3F) == 0) { // check if third byte has a valid format
+                // Incorrect UTF-8 sequence
                 return 0;
             }
+            // move the pointer to next character after sequence
             string += 3;
-        } 
-        else if ((*string & 0b11111000) == 0b11110000) {
-            // four byte char
-            if ((string[1] & 0b11000000) != 0b10000000 ||
-                (string[2] & 0b11000000) != 0b10000000 ||
-                (string[3] & 0b11000000) != 0b10000000 ||
-                (*string & 0b00000111) == 0 ||
-                (string[1] & 0b00111111) == 0 ||
-                (string[2] & 0b00111111) == 0 ||
-                (string[3] & 0b00111111) == 0) {
+        }
+        // check if current character = start of four-byte UTF-8 character
+        else if ((*string & 0xF8) == 0xF0) {
+            // validate second, third, and fourth bytes
+            if ((string[1] & 0xC0) != 0x80 || // check if byte 2 = continuation byte
+                (string[2] & 0xC0) != 0x80 || // check if byte 3 = continuation byte
+                (string[3] & 0xC0) != 0x80 || // check if byte 4 = continuation byte
+                (*string & 0x7) == 0 || // check if first byte has a valid format
+                (string[1] & 0x3F) == 0 || // check if second byte has a valid format
+                (string[2] & 0x3F) == 0 || // check if third byte has a valid format
+                (string[3] & 0x3F) == 0) { // check if fourth byte has a valid format
                 // incorrect UTF-8 sequence
                 return 0;
             }
+            // move the pointer to next character after sequence
             string += 4;
-        } 
+        }
+        // if code makes it to else statement, current character is invalid
         else {
             // invalid UTF-8 sequence
             return 0;
         }
     }
+
+    // if the code makes it here, all characters are valid
     return 1;
 }
 
-
-// return the number of characters in a UTF8 encoded string
+// Return the number of characters in a UTF8 encoded string
 int my_utf8_strlen(unsigned char *string){
     int len = 0;
 
-    while (*string){
-        uint8_t byte = (uint8_t)*string;
+    while (*string){ // loop through string
+        // extract first byte of current character
+        int byte = (int)*string;
 
-        if ((byte & 0x80) == 0){
+
+        if ((byte & 0x80) == 0){ // single-byte character
             len++;
             string++;
         }
-        else if ((byte & 0xE0) == 0xC0){
+        else if ((byte & 0xE0) == 0xC0){ // two-byte character
             len++;
             string+=2;
         }
-        else if ((byte & 0xF0) == 0xE0){
+        else if ((byte & 0xF0) == 0xE0){ // three-byte character
             len++;
             string += 3;
         }
-        else if ((byte & 0xF8) == 0xF0){
+        else if ((byte & 0xF8) == 0xF0){ // four-byte character
             len++;
             string+=4;
         }
+        // if code reaches here, the current character is invalid
         else {
+            // move to next character
             string++;
         }
     }
@@ -248,24 +300,30 @@ int my_utf8_strlen(unsigned char *string){
 // return NULL to indicate an error.
 unsigned char *my_utf8_charat(unsigned const char *string, int index) {
     if (string == NULL || index < 0) {
-        return NULL;  // Invalid input
+        return NULL;  // Invalid input (string or index)
     }
 
-    int i = 0;
-    while (string[i] != '\0') {
-        if ((string[i] & 0x80) == 0) {
-            // Single-byte character
+    int i = 0;  // current position in string
+
+    while (string[i]) { // loop through string
+        if ((string[i] & 0x80) == 0) { // single-byte character
+            // check if index matches current position
             if (index == 0) {
+                // store result in static array and return
                 static unsigned char result[2];
                 result[0] = string[i];
-                result[1] = '\0';
+                result[1] = '\0'; // null-terminate
                 return result;
             }
+            // keep track of remaining characters to skip before next potential match
+            // (ensures that loop won't keep looking at the same character)
             index--;
         }
-        else if ((string[i] & 0xE0) == 0xC0) {
-            // Two-byte character
+        else if ((string[i] & 0xE0) == 0xC0) { // two-byte character
+            // check if index matches current position and following byte is
+            // valid continuation byte
             if (index == 0 && (string[i + 1] & 0xC0) == 0x80) {
+                // store result in static array and return
                 static unsigned char result[3];
                 result[0] = string[i];
                 result[1] = string[i+1];
@@ -275,9 +333,11 @@ unsigned char *my_utf8_charat(unsigned const char *string, int index) {
             index--;
             i++;
         }
-        else if ((string[i] & 0xF0) == 0xE0) {
-            // Three-byte character
+        else if ((string[i] & 0xF0) == 0xE0) { // three-byte character
+            // check if index matches current position and following bytes are
+            // valid continuation bytes
             if (index == 0 && (string[i + 1] & 0xC0) == 0x80 && (string[i + 2] & 0xC0) == 0x80) {
+                // store result in static array and return
                 static unsigned char result[4];
                 result[0] = string[i];
                 result[1] = string[i+1];
@@ -288,9 +348,11 @@ unsigned char *my_utf8_charat(unsigned const char *string, int index) {
             index--;
             i += 2;
         }
-        else if ((string[i] & 0xF8) == 0xF0) {
-            // Four-byte character
+        else if ((string[i] & 0xF8) == 0xF0) { // four-byte character
+            // check if index matches current position and following bytes are
+            // valid continuation bytes
             if (index == 0 && (string[i + 1] & 0xC0) == 0x80 && (string[i + 2] & 0xC0) == 0x80 && (string[i + 3] & 0xC0) == 0x80) {
+                // store result in static array and return
                 static unsigned char result[5];
                 result[0] = string[i];
                 result[1] = string[i+1];
@@ -302,45 +364,51 @@ unsigned char *my_utf8_charat(unsigned const char *string, int index) {
             index--;
             i += 3;
         }
+        // if code reaches here, current character is invalid
         else {
             // Invalid UTF-8 character
             return NULL;
         }
+        // move to next character in the string
         i++;
     }
-
     // Index out of bounds or invalid UTF-8 encoding
     return NULL;
 }
 
-
 // Returns whether the two strings are the same (similar result set to strcmp())
 int my_utf8_strcmp(unsigned char *string1, unsigned char *string2) {
-    while (*string1 != '\0' && *string2 != '\0') {
-        // Iterate over characters in both strings
+    while (*string1 && *string2) { // loop through both strings
         unsigned char char1 = *string1;
         unsigned char char2 = *string2;
 
         if (char1 < 128 && char2 < 128) {
             // Both characters are ASCII
             if (char1 != char2) {
-                return char1 - char2;  // ASCII comparison
+                return char1 - char2;  // normal ASCII comparison
             }
         }
         else {
             // At least one character is non-ASCII (UTF-8)
-            while ((*string1 & 0xC0) == 0x80) string1++;  // Skip UTF-8 continuation bytes
-            while ((*string2 & 0xC0) == 0x80) string2++;
+            while ((*string1 & 0xC0) == 0x80) {
+                string1++;  // Skip UTF-8 continuation bytes
+            }
+            while ((*string2 & 0xC0) == 0x80) {
+                string2++; // Skip UTF-8 continuation bytes
+            }
 
             // Compare UTF-8 characters
             int diff;
             while ((*string1 & 0xC0) == 0x80 && (*string2 & 0xC0) == 0x80) {
+                // compare individual bytes of UTF-8 characters
                 diff = *string1++ - *string2++;
                 if (diff != 0) {
-                    return diff;
+                    return diff; // difference found - not the same
                 }
             }
 
+            // If byte is continuation byte, it means that one of the
+            // characters is part of a multibyte UTF-8 sequence.
             // If one string is shorter, return the difference in length
             if ((*string1 & 0xC0) == 0x80 || (*string2 & 0xC0) == 0x80) {
                 return (*string1 & 0xC0) - (*string2 & 0xC0);
@@ -349,21 +417,21 @@ int my_utf8_strcmp(unsigned char *string1, unsigned char *string2) {
             // Compare the first non-ASCII character
             diff = *string1 - *string2;
             if (diff != 0) {
-                return diff;
+                return diff; // difference found
             }
         }
 
-        // Move to the next character
+        // Move to the next character in both strings
         string1++;
         string2++;
     }
 
     // Check if one string is shorter than the other
-    if (*string1 != '\0') {
-        return 1;
+    if (*string1) {
+        return 1; // string1 longer
     }
-    else if (*string2 != '\0') {
-        return -1;
+    else if (*string2) {
+        return -1; // string2 longer
     }
 
     // Strings are equal
@@ -379,10 +447,12 @@ unsigned char* my_utf8_remove_whitespace(unsigned const char *input) {
 
     // Allocate memory for the result string
     int inputLength = 0;
-    while (input[inputLength] != '\0') {
-        inputLength++;
+    while (input[inputLength]) {
+        inputLength++; // calculate length of input string
     }
 
+    // Allocate memory for the result string, considering the possibility of
+    // removing characters
     unsigned char *result = (unsigned char*)malloc((inputLength + 1) * sizeof(char));
     if (result == NULL) {
         return NULL;
@@ -391,77 +461,23 @@ unsigned char* my_utf8_remove_whitespace(unsigned const char *input) {
     // Iterate through the UTF-8 string, copying non-whitespace characters to the result
     int resultIndex = 0;
     for (int i = 0; i < inputLength; ++i) {
-        uint8_t currentChar = (uint8_t)(input[i]);
-
+        int currentChar = (int)(input[i]);
         // Check if the character is a whitespace character
-        if (currentChar != ' ' && currentChar != '\t' && currentChar != '\n' && currentChar != '\r') {
+        if (currentChar != ' ' && currentChar != '\t' && currentChar != '\n' &&
+            currentChar != '\r' && currentChar != '\v' && currentChar != '\f') {
             result[resultIndex++] = input[i];
         }
     }
 
-    // Null-terminate the result string
-    result[resultIndex] = '\0';
+    result[resultIndex] = '\0'; // null-terminate
 
     return result;
 }
 
 
-int utf8CharLen(unsigned const char *str, int index) {
-    if ((str[index] & 0x80) == 0) {
-        return 1; // Single-byte character
-    } else if ((str[index] & 0xE0) == 0xC0) {
-        return 2; // Two-byte character
-    } else if ((str[index] & 0xF0) == 0xE0) {
-        return 3; // Three-byte character
-    } else if ((str[index] & 0xF8) == 0xF0) {
-        return 4; // Four-byte character
-    }
-    return 1; // Default to single-byte character
-
-}
-
-int getUTF8CharInfo(unsigned const char *str, int index, uint32_t *currentChar, int *bytes) {
-    *currentChar = 0;
-    *bytes = 0;
-
-    // Determine the number of bytes in the UTF-8 character
-    if ((str[index] & 0x80) == 0) {
-        *currentChar = str[index];
-        *bytes = 1;
-    } else if ((str[index] & 0xE0) == 0xC0) {
-        *currentChar = str[index] & 0x1F;
-        *bytes = 2;
-    } else if ((str[index] & 0xF0) == 0xE0) {
-        *currentChar = str[index] & 0x0F;
-        *bytes = 3;
-    } else if ((str[index] & 0xF8) == 0xF0) {
-        *currentChar = str[index] & 0x07;
-        *bytes = 4;
-    } else if ((str[index] & 0xFC) == 0xF8) {
-        *currentChar = str[index] & 0x03;
-        *bytes = 5;
-    } else if ((str[index] & 0xFE) == 0xFC) {
-        *currentChar = str[index] & 0x01;
-        *bytes = 6;
-    } else {
-        // Invalid UTF-8 sequence
-        return -1;
-    }
-
-    // Read the remaining bytes of the UTF-8 character
-    for (int j = 1; j < *bytes; ++j) {
-        if ((str[index + j] & 0b11000000) != 0b10000000) {
-            // Malformed UTF-8 sequence
-            return -1;
-        }
-        *currentChar = (*currentChar << 6) | (str[index + j] & 0b00111111);
-    }
-
-    return 0; // Success
-}
 
 
-// Function to check if two strings are anagrams
+// Function to check if two strings are anagrams (1 if they are, 0 if not)
 int my_utf8_anagram_checker(unsigned char *str1, unsigned char *str2) {
     if (str1 == NULL || str2 == NULL) {
         printf("Invalid input.\n");
@@ -477,9 +493,11 @@ int my_utf8_anagram_checker(unsigned char *str1, unsigned char *str2) {
     }
 
     // Allocate memory for character count arrays
-    int *charCount1 = (int*)calloc(2048, sizeof(int));  // Assume a maximum of 2048 characters
+    // Assume a maximum of 2048 characters
+    int *charCount1 = (int*)calloc(2048, sizeof(int));
     int *charCount2 = (int*)calloc(2048, sizeof(int));
 
+    // check if memory allocation fails
     if (charCount1 == NULL || charCount2 == NULL) {
         free(charCount1);
         free(charCount2);
@@ -489,7 +507,7 @@ int my_utf8_anagram_checker(unsigned char *str1, unsigned char *str2) {
     // Count the occurrence of each character in the first string
     int i = 0;
     while (i < len1) {
-        uint32_t currentChar;
+        int currentChar;
         int bytes;
 
         // Check for errors in obtaining UTF-8 character information
@@ -506,7 +524,7 @@ int my_utf8_anagram_checker(unsigned char *str1, unsigned char *str2) {
     // Count the occurrence of each character in the second string
     i = 0;
     while (i < len2) {
-        uint32_t currentChar;
+        int currentChar;
         int bytes;
 
         // Check for errors in obtaining UTF-8 character information
@@ -536,16 +554,10 @@ int my_utf8_anagram_checker(unsigned char *str1, unsigned char *str2) {
 }
 
 
-
-
-
-
-
-
 // TESTING - helper functions
 // manually compare two strings
 int compare_strings(unsigned char *str1, unsigned char *str2){
-    while (*str1 != '\0' && *str2 != '\0' && *str1 == *str2){
+    while (*str1 && *str2 && *str1 == *str2){
         str1++;
         str2++;
     }
@@ -659,9 +671,6 @@ void test_utf8_anagram_checker(unsigned char* str1, unsigned char* str2, int exp
         printf("FAILED: String 1=\"%s\", String 2=\"%s\", Expected=%d, Result=%d\n", str1, str2, expected, res);
     }
 }
-
-
-
 
 void test_all_utf8_encode(){
     printf("Testing my_utf8_encode:\n");
@@ -785,15 +794,13 @@ void test_all_utf8_remove_whitespace() {
 
 void test_all_utf8_anagram_checker(){
     printf("\nTesting my_utf8_anagram_checker():\n");
+    test_utf8_anagram_checker((unsigned char*)"", (unsigned char*) "", 1);
     test_utf8_anagram_checker((unsigned char*)"A", (unsigned char*) "A", 1);
     test_utf8_anagram_checker((unsigned char*)"Amira", (unsigned char*) "Amira", 1);
-    test_utf8_anagram_checker((unsigned char*)"Amira", (unsigned char*) "aimAr", 1);
-    test_utf8_anagram_checker((unsigned char*)"Amira", (unsigned char*) "aisAr", 0);
-    test_utf8_anagram_checker((unsigned char*)"Hello", (unsigned char*) "world", 0);
     test_utf8_anagram_checker((unsigned char*)"是的中國", (unsigned char*) "國中是的", 1);
-//    test_utf8_anagram_checker((unsigned char*)"Amira I", (unsigned char*) "Amira 😁", 1);
-    test_utf8_anagram_checker((unsigned char*)"", (unsigned char*) "", 1);
-//    test_utf8_anagram_checker((unsigned char*)"😁", (unsigned char*) "😁", 1);
+    test_utf8_anagram_checker((unsigned char*)"Amira", (unsigned char*) "aimar", 0);
+    test_utf8_anagram_checker((unsigned char*)"Amira", (unsigned char*) "aisAr", 0);
+    test_utf8_anagram_checker((unsigned char*)"Δοκιμές", (unsigned char*) "  Δοκιμές ", 0);
 }
 
 
