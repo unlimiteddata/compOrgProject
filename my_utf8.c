@@ -258,14 +258,21 @@ unsigned char *my_utf8_charat(unsigned char *string, int index) {
         if ((string[i] & 0x80) == 0) {
             // Single-byte character
             if (index == 0) {
-                return &string[i];
+                static unsigned char result[2];
+                result[0] = string[i];
+                result[1] = '\0';
+                return result;
             }
             index--;
         }
         else if ((string[i] & 0xE0) == 0xC0) {
             // Two-byte character
             if (index == 0 && (string[i + 1] & 0xC0) == 0x80) {
-                return &string[i];
+                static unsigned char result[3];
+                result[0] = string[i];
+                result[1] = string[i+1];
+                result[2] = '\0';
+                return result;
             }
             index--;
             i++;
@@ -273,7 +280,12 @@ unsigned char *my_utf8_charat(unsigned char *string, int index) {
         else if ((string[i] & 0xF0) == 0xE0) {
             // Three-byte character
             if (index == 0 && (string[i + 1] & 0xC0) == 0x80 && (string[i + 2] & 0xC0) == 0x80) {
-                return &string[i];
+                static unsigned char result[4];
+                result[0] = string[i];
+                result[1] = string[i+1];
+                result[2] = string[i+2];
+                result[3] = '\0';
+                return result;
             }
             index--;
             i += 2;
@@ -281,7 +293,13 @@ unsigned char *my_utf8_charat(unsigned char *string, int index) {
         else if ((string[i] & 0xF8) == 0xF0) {
             // Four-byte character
             if (index == 0 && (string[i + 1] & 0xC0) == 0x80 && (string[i + 2] & 0xC0) == 0x80 && (string[i + 3] & 0xC0) == 0x80) {
-                return &string[i];
+                static unsigned char result[5];
+                result[0] = string[i];
+                result[1] = string[i+1];
+                result[2] = string[i+2];
+                result[3] = string[i+3];
+                result[4] = '\0';
+                return result;
             }
             index--;
             i += 3;
@@ -482,6 +500,21 @@ void test_utf8_strlen(unsigned char *input, int expected){
     }
 }
 
+void test_utf8_charat(unsigned char *input, int index, unsigned char *expected){
+    unsigned char *res = my_utf8_charat(input, index);
+
+    if (res != NULL){
+        printf("PASSED: Input=\"%s\", Index=%d, Expected=%s, Result=%s\n", input, index, expected, res);
+    }
+    else {
+        if (expected == NULL){
+            printf("PASSED: Input=\"%s\", Index=%d, Expected=NULL, Result=NULL\n", input, index);
+        }
+        else {
+            printf("FAILED: Input=\"%s\", Index=%d, Expected=%s, Result=%s\n", input, index, expected, res);
+        }
+    }
+}
 
 void test_all_utf8_encode(){
     printf("Testing my_utf8_encode:\n");
@@ -495,6 +528,7 @@ void test_all_utf8_encode(){
     test_utf8_encode((unsigned char*)"\\u1f632\\u1f634", (unsigned char*)"😲😴");
     test_utf8_encode((unsigned char*)"Hello \\u05D0\\u05E8\\u05D9\\u05D4 \\u1F601", (unsigned char*)"Hello אריה 😁");
     test_utf8_encode((unsigned char*)"אמירה", (unsigned char*)"אמירה");
+    test_utf8_encode((unsigned char*)"\xf0\x90\x84\xa1", (unsigned char*)"𐄡");
     test_utf8_encode((unsigned char*)"u\\05D0", (unsigned char*)"u\\05D0");
 }
 
@@ -509,6 +543,8 @@ void test_all_utf8_decode(){
     test_utf8_decode((unsigned char*)"🀜", (unsigned char*)"\\u1F01C");
     test_utf8_decode((unsigned char*)"🀤🀲", (unsigned char*)"\\u1F024\\u1F032");
     test_utf8_decode((unsigned char*)"Hello אריה 😁", (unsigned char*)"Hello \\u05D0\\u05E8\\u05D9\\u05D4 \\u1F601");
+    test_utf8_decode((unsigned char*)"", (unsigned char*)"");
+    test_utf8_decode((unsigned char*)"\xf0\x90\xa9\xa0", (unsigned char*)"\\u10A60");
     test_utf8_decode((unsigned char*)"\\u1846", (unsigned char*)"\\u1846");
     test_utf8_decode((unsigned char*)"\\uZZZZ", (unsigned char*)"\\uZZZZ");
 }
@@ -546,11 +582,34 @@ void test_all_utf8_strlen(){
 }
 
 
+void test_all_utf8_charat(){
+    printf("\nTesting my_utf8_charat:\n");
+    // valid index
+    test_utf8_charat((unsigned char*)"", 0, NULL);
+    test_utf8_charat((unsigned char*)"L", 0,(unsigned char*)"L");
+    test_utf8_charat((unsigned char*)"Hello", 1, (unsigned char*)"e");
+    test_utf8_charat((unsigned char*)"ສະບາຍດີ", 2, (unsigned char*)"ບ");
+    test_utf8_charat((unsigned char*)"Language Язык", 9, (unsigned char*)"Я");
+    test_utf8_charat((unsigned char*)"\xe2\x86\xaa\xe2\x86\xa1\xe2\x86\xa0", 2, (unsigned char*)"↠");
+    test_utf8_charat((unsigned char*)"\xC0\x80", 0, (unsigned char*)"\xC0\x80"); // overlong
+    test_utf8_charat((unsigned char*)"\xED\xA0\x80", 0, (unsigned char*)"\xED\xA0\x80"); // Surrogate pair
+    // invalid index:
+    test_utf8_charat((unsigned char*)"Amira", 5, NULL);
+    test_utf8_charat((unsigned char*)"テスト", 7, NULL);
+    test_utf8_charat((unsigned char*)"This is a Sợi dây", 30, NULL);
+    test_utf8_charat((unsigned char*)"\xf0\x9e\xb8\x99\xf0\x9e\xb8\xbb", 4, NULL);
+    test_utf8_charat((unsigned char*)"\xC0\x80", 4, NULL); // overlong
+    test_utf8_charat((unsigned char*)"\xED\xA0\x80", 46, NULL); // Surrogate pair
+
+}
+
+
 int main() {
     test_all_utf8_encode();
     test_all_utf8_decode();
     test_all_utf8_check();
     test_all_utf8_strlen();
+    test_all_utf8_charat();
 ////    unsigned char input[] = "Hello \\u05D0\\u05E8\\u05D9\\u05D4 \\u1F601";
 //    unsigned char input[] = "\\u00A3\\u0065llo";
 ////
@@ -624,9 +683,14 @@ int main() {
 //    unsigned char lenInput2backslash[] = "\\xd7\\x90\\xd7\\xaa";
 //    printf("Length of \"%s\":\n%d\n", lenInput2backslash, my_utf8_strlen(lenInput2));
 //
-//    // Test my_utf8_charat
+    // Test my_utf8_charat
 //    printf("\nTesting my_utf8_charat:\n");
-//    unsigned char charAtInput[] = "Hello אריה";
+//    unsigned char charAtInput[] = "ສະບາຍດີ";
+//    int index = 3;
+//    unsigned char *result = my_utf8_charat(charAtInput, index);
+//
+//    printf("Character at index: %s", result);
+
 //    for (int index = 0; charAtInput[index] != '\0'; ++index) {
 //        unsigned char *result = my_utf8_charat(charAtInput, index);
 //        if (result != NULL) {
