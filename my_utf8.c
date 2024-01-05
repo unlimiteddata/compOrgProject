@@ -48,22 +48,26 @@ int getUTF8CharInfo(unsigned const char *str, int index, int *currentChar, int *
         // checks if MSB = 0; if true, single byte encoding
         *currentChar = str[index];
         *bytes = 1;
-    } else if ((str[index] & 0xE0) == 0xC0) { // two-byte character
+    }
+    else if ((str[index] & 0xE0) == 0xC0) { // two-byte character
         // checks if the first three bits of the first byte = 110
         // extract the lower five bytes of the first byte (excluding 110)
         *currentChar = str[index] & 0x1F;
         *bytes = 2;
-    } else if ((str[index] & 0xF0) == 0xE0) { // three-byte character
+    }
+    else if ((str[index] & 0xF0) == 0xE0) { // three-byte character
         // check if first four bits are 1110
         // extract lower four bits of the first byte
         *currentChar = str[index] & 0x0F;
         *bytes = 3;
-    } else if ((str[index] & 0xF8) == 0xF0) { // four-byte character
+    }
+    else if ((str[index] & 0xF8) == 0xF0) { // four-byte character
         // check if first five bits are 11110
         // extract lower three bits of the first byte
         *currentChar = str[index] & 0x07;
         *bytes = 4;
-    } else {
+    }
+    else {
         // Invalid UTF-8 sequence
         return -1;
     }
@@ -174,7 +178,9 @@ int my_utf8_decode(unsigned char *input, unsigned char *output) {
             int codePoint = 0;
             int  numBytes = 0;
 
-            if (getUTF8CharInfo(input, 0, &codePoint, &numBytes) == -1) {
+            // Check for errors in obtaining UTF-8 character information
+            int info = getUTF8CharInfo(input, 0, &codePoint, &numBytes);
+            if (info == -1) { // error
                 return -1;
             }
 
@@ -648,7 +654,8 @@ void test_utf8_remove_whitespace(const unsigned char *input, unsigned char *expe
 
     if (compare_strings(result, expected) == 1) {
         printf("PASSED: Input=\"%s\", Expected=\"%s\", Result=\"%s\"\n", input, expected, result);
-    } else {
+    }
+    else {
         printf("FAILED: Input=\"%s\", Expected=\"%s\", Result=\"%s\"\n", input, expected, result);
     }
 
