@@ -355,7 +355,9 @@ unsigned char *my_utf8_charat(unsigned const char *string, int index) {
         else if ((string[i] & 0xF8) == 0xF0) { // four-byte character
             // check if index matches current position and following bytes are
             // valid continuation bytes
-            if (index == 0 && (string[i + 1] & 0xC0) == 0x80 && (string[i + 2] & 0xC0) == 0x80 && (string[i + 3] & 0xC0) == 0x80) {
+            if (index == 0 && (string[i + 1] & 0xC0) == 0x80 &&
+                              (string[i + 2] & 0xC0) == 0x80 &&
+                              (string[i + 3] & 0xC0) == 0x80) {
                 // store result in static array and return
                 static unsigned char result[5];
                 result[0] = string[i];
@@ -679,11 +681,13 @@ void test_all_utf8_encode(){
     test_utf8_encode((unsigned char*)"A", (unsigned char*)"A");
     test_utf8_encode((unsigned char*)"Hello", (unsigned char*)"Hello");
     test_utf8_encode((unsigned char*)"\\u1846", (unsigned char*)"ᡆ");
-    test_utf8_encode((unsigned char*)"\\u10D2\\u10D0\\u10DB\\u10D0\\u10E0\\u10EF\\u10DD\\u10D1\\u10D0", (unsigned char*)"გამარჯობა");
+    test_utf8_encode((unsigned char*)"\\u10D2\\u10D0\\u10DB\\u10D0\\u10E0\\u10EF\\u10DD\\u10D1\\u10D0",
+                     (unsigned char*)"გამარჯობა");
     test_utf8_encode((unsigned char*)"\\u103a8", (unsigned char*)"𐎨");
     test_utf8_encode((unsigned char*)"\\uZZZZ", (unsigned char*)"\\uZZZZ");
     test_utf8_encode((unsigned char*)"\\u1f632\\u1f634", (unsigned char*)"😲😴");
-    test_utf8_encode((unsigned char*)"Hello \\u05D0\\u05E8\\u05D9\\u05D4 \\u1F601", (unsigned char*)"Hello אריה 😁");
+    test_utf8_encode((unsigned char*)"Hello \\u05D0\\u05E8\\u05D9\\u05D4 \\u1F601",
+                     (unsigned char*)"Hello אריה 😁");
     test_utf8_encode((unsigned char*)"אמירה", (unsigned char*)"אמירה");
     test_utf8_encode((unsigned char*)"\xf0\x90\x84\xa1", (unsigned char*)"𐄡");
     test_utf8_encode((unsigned char*)"u\\05D0", (unsigned char*)"u\\05D0");
@@ -698,7 +702,8 @@ void test_all_utf8_decode(){
     test_utf8_decode((unsigned char*)"Խոսք", (unsigned char*)"\\u053D\\u0578\\u057D\\u0584");
     test_utf8_decode((unsigned char*)"🀜", (unsigned char*)"\\u1F01C");
     test_utf8_decode((unsigned char*)"🀤🀲", (unsigned char*)"\\u1F024\\u1F032");
-    test_utf8_decode((unsigned char*)"Hello אריה 😁", (unsigned char*)"Hello \\u05D0\\u05E8\\u05D9\\u05D4 \\u1F601");
+    test_utf8_decode((unsigned char*)"Hello אריה 😁",
+                     (unsigned char*)"Hello \\u05D0\\u05E8\\u05D9\\u05D4 \\u1F601");
     test_utf8_decode((unsigned char*)"", (unsigned char*)"");
     test_utf8_decode((unsigned char*)"\xf0\x90\xa9\xa0", (unsigned char*)"\\u10A60");
     test_utf8_decode((unsigned char*)"\\u1846", (unsigned char*)"\\u1846");
@@ -745,9 +750,11 @@ void test_all_utf8_charat(){
     test_utf8_charat((unsigned char*)"Hello", 1, (unsigned char*)"e");
     test_utf8_charat((unsigned char*)"ສະບາຍດີ", 2, (unsigned char*)"ບ");
     test_utf8_charat((unsigned char*)"Language Язык", 9, (unsigned char*)"Я");
-    test_utf8_charat((unsigned char*)"\xe2\x86\xaa\xe2\x86\xa1\xe2\x86\xa0", 2, (unsigned char*)"↠");
+    test_utf8_charat((unsigned char*)"\xe2\x86\xaa\xe2\x86\xa1\xe2\x86\xa0", 2,
+                     (unsigned char*)"↠");
     test_utf8_charat((unsigned char*)"\xC0\x80", 0, (unsigned char*)"\xC0\x80"); // overlong
-    test_utf8_charat((unsigned char*)"\xED\xA0\x80", 0, (unsigned char*)"\xED\xA0\x80"); // Surrogate pair
+    test_utf8_charat((unsigned char*)"\xED\xA0\x80", 0,
+                     (unsigned char*)"\xED\xA0\x80"); // Surrogate pair
     // invalid index:
     test_utf8_charat((unsigned char*)"Amira", 5, NULL);
     test_utf8_charat((unsigned char*)"テスト", 7, NULL);
@@ -774,18 +781,23 @@ void test_all_utf8_strcmp(){
     test_utf8_strcmp((unsigned char*)"ဈ",(unsigned char*)"\xe1\x80\x88", 0);
     test_utf8_strcmp((unsigned char*)"😁 Hello",(unsigned char*)"信 yes", 1);
     test_utf8_strcmp((unsigned char*)"\xC0\x80",(unsigned char*)"a", 1); // overlong
-    test_utf8_strcmp((unsigned char*)"computer",(unsigned char*)"\xE0\x90\x88", -1); // overlong
-    test_utf8_strcmp((unsigned char*)"\xED\xA0\x90",(unsigned char*)"ASCII", 1); // invalid surrogate pair
+    test_utf8_strcmp((unsigned char*)"computer",
+                     (unsigned char*)"\xE0\x90\x88", -1); // overlong
+    test_utf8_strcmp((unsigned char*)"\xED\xA0\x90",
+                     (unsigned char*)"ASCII", 1); // invalid surrogate pair
 }
 void test_all_utf8_remove_whitespace() {
     printf("\nTesting my_utf8_remove_whitespace:\n");
     test_utf8_remove_whitespace((unsigned char *) "Hello World", (unsigned char *) "HelloWorld");
-    test_utf8_remove_whitespace((unsigned char *) "   Remove   \t  Whitespace\n", (unsigned char *) "RemoveWhitespace");
-    test_utf8_remove_whitespace((unsigned char *) "NoWhitespaceHere", (unsigned char *) "NoWhitespaceHere");
+    test_utf8_remove_whitespace((unsigned char *) "   Remove   \t  Whitespace\n",
+                                (unsigned char *) "RemoveWhitespace");
+    test_utf8_remove_whitespace((unsigned char *) "NoWhitespaceHere",
+                                (unsigned char *) "NoWhitespaceHere");
     test_utf8_remove_whitespace((unsigned char *) "", (unsigned char *) "");
     test_utf8_remove_whitespace((unsigned char *) "     ", (unsigned char *) "");
     test_utf8_remove_whitespace((unsigned char *) "\n\t\r", (unsigned char *) "");
-    test_utf8_remove_whitespace((unsigned char *) "Привет, \t\nмир    \n\r!", (unsigned char *) "Привет,мир!");
+    test_utf8_remove_whitespace((unsigned char *) "Привет, \t\nмир    \n\r!",
+                                (unsigned char *) "Привет,мир!");
     test_utf8_remove_whitespace((unsigned char *) "\xcf\x87\xcf\x8e\t\xcf\x81\n\xce\xbf\xcf\x82",
                                 (unsigned char *) "χώρος");
 
