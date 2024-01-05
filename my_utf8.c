@@ -186,7 +186,7 @@ int my_utf8_decode(unsigned char *input, unsigned char *output) {
 
             // Calculate the number of digits in the Unicode code point
             int digits = 1;
-            int  temp = codePoint;
+            int temp = codePoint;
             while (temp >>= 4){
                 ++digits;
             }
@@ -468,6 +468,7 @@ unsigned char* my_utf8_remove_whitespace(unsigned const char *input) {
     int resultIndex = 0;
     for (int i = 0; i < inputLength; ++i) {
         int currentChar = (int)(input[i]);
+
         // Check if the character is a whitespace character
         if (currentChar != ' ' && currentChar != '\t' && currentChar != '\n' &&
             currentChar != '\r' && currentChar != '\v' && currentChar != '\f') {
